@@ -1,0 +1,29 @@
+#!/bin/sh
+
+bin/read_hess_nr --help
+
+echo ''
+echo 'The first test will display data from 97-tel. simulations.'
+echo ''
+
+sleep 3
+
+bin/read_hess_nr -v -s -r1 -p test.ps test.simhess.gz | less +p89.7%
+
+echo ''
+echo 'The second test will display data from HESS simulations in detail.'
+echo 'These data include results from pulse shape analysis and'
+echo 'central trigger timing data.'
+echo ''
+
+sleep 3
+
+bin/read_hess_nr -v -S -r1 -p test2.ps test2.simhess.gz | less +p89.6%
+
+echo ''
+echo 'The final test will convert embedded histograms into ROOT format.'
+echo ''
+
+bin/hdata2root test.simhess.gz test.root 2>&1 | \
+  grep -v 'Data in input file are not histograms' | \
+  egrep -v '^[ ]*$'

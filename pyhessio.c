@@ -1,0 +1,586 @@
+/** @file pyhessio.c
+ *  @short A wrapper program reading H.E.S.S. data with python
+ *
+ * Suggestions/complains to jacquem@lapp.in2p3.fr
+ *
+ */
+#include "initial.h"      /* This file includes others as required. */
+#include "io_basic.h"     /* This file includes others as required. */
+#include "io_hess.h"
+#include "fileopen.h"
+#include "stdio.h"
+
+
+int move_to_next_event(int *event_id);
+int file_open(const char* filename);
+void close_file(void);
+int fill_hsdata(int* event_id);
+int get_run_number(void);
+void get_pixel_data(int telescopeId, int channel, uint16_t *data );
+
+
+static AllHessData *hsdata = NULL;
+static IO_ITEM_HEADER item_header;
+static IO_BUFFER *iobuf = NULL;
+static int file_is_opened = 0;
+
+//-----------------------------------
+// Return array index for specific id
+//-----------------------------------
+
+int getTelscopeIndex(int telescopeId)
+{
+	int itel=0;
+    for (itel=0; itel<hsdata->run_header.ntel; itel++)
+    {
+    	 if ((hsdata)->run_header.tel_id[itel] == telescopeId) return itel;
+    }
+    return -1;
+}
+
+//----------------------------------
+//Read input file and fill hsdata
+// and item_header global var 
+//----------------------------------
+int file_open(const char* filename)
+{
+  if (filename)
+  {
+    if (file_is_opened)
+    {
+       close_file(); 
+    }
+
+    /* Check assumed limits with the ones compiled into the library. */
+    H_CHECK_MAX();
+   
+    if ( (iobuf = allocate_io_buffer(1000000L)) == NULL )
+    {
+      Error("Cannot allocate I/O buffer");
+      exit(1);
+    }
+    iobuf->max_length = 100000000L;
+
+    //input_fname = "/home/jacquem/Downloads/gamma_20deg_0deg_run31964___cta-prod2_desert-1640m-Aar.simtel.gz";
+
+    if ( (iobuf->input_file = fileopen(filename,READ_BINARY)) == NULL )
+    {
+      perror(filename);
+      Error("Cannot open input file.");
+      return -1 ;
+    }
+
+    fflush(stdout);
+    fprintf(stderr,"%s\n",filename);
+    printf("\nInput file '%s' has been opened.\n",filename);
+    file_is_opened = 1;
+  }
+  return 0;
+}
+
+//----------------------------------
+//Read input file and fill hsdata
+// and item_header global var 
+//----------------------------------
+int move_to_next_event(int *event_id)
+{
+  
+  if (! file_is_opened) return -1;
+
+  int rc = 0;
+  while(   rc != IO_TYPE_HESS_EVENT )
+  {
+    rc = fill_hsdata( event_id);
+    if (rc < 0) 
+    {
+       close_file(); 
+       return -1; 
+    }  
+  }
+ return  rc; 
+}
+
+
+/*--------------------------------*/
+//  Cleanly close iobuf
+//----------------------------------
+void close_file()
+{
+
+  if ( iobuf->input_file != NULL && iobuf->input_file != stdin )
+
+	fileclose(iobuf->input_file);
+  iobuf->input_file = NULL;
+  reset_io_block(iobuf);
+
+  if (iobuf->output_file != NULL) fileclose(iobuf->output_file);
+}
+
+
+
+//------------------------------------------
+//  return run number from last readed event
+//------------------------------------------
+int get_run_number(void)
+{
+  if ( hsdata != NULL)
+  {
+    return hsdata->run_header.run;
+  }
+  return -1;
+}
+
+//------------------------------------
+// Return number of telescopes in run.
+//------------------------------------
+int get_num_telescope(void)
+{
+  if ( hsdata != NULL)
+  {
+    return hsdata->event.num_tel;
+  }
+  return -1;
+}
+
+//------------------------------------------------------------
+// Return number of telescopes for which we actually have data
+//------------------------------------------------------------
+int get_num_teldata(void)
+{
+  if ( hsdata != NULL)
+  {
+    return hsdata->event.num_teldata;
+  }
+  return -1;
+}
+//-------------------------------------------
+// Return list of IDs of telescopes with data
+//-------------------------------------------
+void get_teldata_list(int* list)
+{
+  if ( hsdata != NULL)
+  {
+    int num_teldata = get_num_teldata();
+    int loop = 0;
+    for ( loop = 0; loop < num_teldata ; loop++)
+    {
+      *list++ =hsdata->event.teldata_list[loop];
+    }
+  }
+}
+//----------------------------------------------------------------
+// Return he number of different gains per pixel for a telscope id
+//----------------------------------------------------------------
+int get_num_channel(int telescopeId)
+{
+
+  if ( hsdata != NULL)
+  {
+	int itel = getTelscopeIndex(telescopeId);
+    AdcData* raw = hsdata->event.teldata[itel].raw;
+    if ( raw != NULL && raw->known  )
+    {
+      return raw->num_gains;
+    }
+  }
+  return 0;
+}
+
+//----------------------------------------------------------------
+void get_pixel_data(int telescopeId, int channel, uint16_t *data )
+//----------------------------------------------------------------
+// Return Pulses sampled
+{
+  if ( hsdata != NULL)
+  {
+	int itel = getTelscopeIndex(telescopeId);
+	AdcData* raw = hsdata->event.teldata[itel].raw;
+    if ( raw != NULL && raw->known  ) // If triggered telescopes
+    {
+      int ipix =0.;
+      for(ipix=0.;ipix<raw->num_pixels;ipix++) //  loop over pixels
+      {
+        if(!raw->significant[ipix]){
+        }
+         else {
+           int igain=0;
+           for(igain=0.;igain<raw->num_gains;igain++)
+           {
+			   if(raw->num_gains == channel && raw->num_samples>0)
+			   {
+				 int isamp=0.;
+				 for (isamp=0.;isamp<raw->num_samples;isamp++)
+				 {
+					 *data++ = raw->adc_sample[igain][ipix][isamp];
+
+			     }
+               }
+           }
+        }
+
+      }  // end of  loop over pixels
+
+    } // end if triggered telescopes
+  }
+}
+//----------------------------------------------------------------
+// Return the number of pixels in the camera (as in configuration)
+//----------------------------------------------------------------
+int get_num_pixels(int telescopeId)
+{
+  if ( hsdata != NULL)
+  {
+	int itel = getTelscopeIndex(telescopeId);
+    AdcData* raw = hsdata->event.teldata[itel].raw;
+    if ( raw != NULL ) // raw->known  )
+    {
+      return raw->num_pixels;
+    }
+  }
+  return 0;
+}
+
+//-----------------------------------------------------
+// Return the number of samples (time slices) recorded
+//-----------------------------------------------------
+int get_num_samples(int telescopeId)
+{
+  if ( hsdata != NULL)
+  {
+	int itel = getTelscopeIndex(telescopeId);
+    AdcData* raw = hsdata->event.teldata[itel].raw;
+    if ( raw != NULL )//&& raw->known  )
+    {
+      return raw->num_samples;
+    }
+  }
+  return 0;
+}
+//--------------------------------------------------
+// fill hsdata global variable by decoding data file
+//--------------------------------------------------
+ int fill_hsdata(int* event_id)//,int *header_readed)
+ {
+  
+  int itel;
+  int rc = 0;
+  int ignore = 0;
+
+  int tel_id;
+
+  /* Find and read the next block of data. */
+  /* In case of problems with the data, just give up. */
+  if ( find_io_block(iobuf,&item_header) != 0 )
+   {
+    return -1;
+   }
+  if ( read_io_block(iobuf,&item_header) != 0 )
+  {
+    return -1;
+  }
+
+ // if ( ( !header_readed) && 
+  if ( hsdata == NULL &&
+       item_header.type > IO_TYPE_HESS_RUNHEADER &&
+       item_header.type < IO_TYPE_HESS_RUNHEADER + 200)
+    {
+      fprintf(stderr,"Trying to read event data before run header.\n");
+      fprintf(stderr,"Skipping this data block.\n");
+      return -1;
+
+    }
+    
+
+
+  switch ( (int) item_header.type )
+    {
+      /* =================================================== */
+    case IO_TYPE_HESS_RUNHEADER:
+
+     /* Structures might be allocated from previous run */
+    if ( hsdata != NULL )
+    {
+      /* Free memory allocated inside ... */
+      for (itel=0; itel<hsdata->run_header.ntel; itel++)
+      {
+        if ( hsdata->event.teldata[itel].raw != NULL )
+        {
+         free(hsdata->event.teldata[itel].raw);
+          hsdata->event.teldata[itel].raw = NULL;
+        }
+        if ( hsdata->event.teldata[itel].pixtm != NULL )
+        {
+          free(hsdata->event.teldata[itel].pixtm);
+          hsdata->event.teldata[itel].pixtm = NULL;
+        }
+        if ( hsdata->event.teldata[itel].img != NULL )
+        {
+          free(hsdata->event.teldata[itel].img);
+          hsdata->event.teldata[itel].img = NULL;
+        }
+        if ( hsdata->event.teldata[itel].pixcal != NULL )
+        {
+          free(hsdata->event.teldata[itel].pixcal);
+          hsdata->event.teldata[itel].pixcal = NULL;
+        }
+      }
+      /* Free main structure */
+      free(hsdata);
+      hsdata = NULL;
+    }
+
+
+      hsdata = (AllHessData *) calloc(1,sizeof(AllHessData));
+      if ( (rc = read_hess_runheader(iobuf,&(hsdata)->run_header)) < 0 )
+      {
+        Warning("Reading run header failed.");
+        exit(1);
+      }
+      fprintf(stderr,"\nStarting run %d\n",(hsdata)->run_header.run);
+      for (itel=0; itel<=(hsdata)->run_header.ntel; itel++)
+      {
+
+        tel_id = (hsdata)->run_header.tel_id[itel];
+        (hsdata)->camera_set[itel].tel_id = tel_id;
+        (hsdata)->camera_org[itel].tel_id = tel_id;
+        (hsdata)->pixel_set[itel].tel_id = tel_id;
+        (hsdata)->pixel_disabled[itel].tel_id = tel_id;
+        (hsdata)->cam_soft_set[itel].tel_id = tel_id;
+        (hsdata)->tracking_set[itel].tel_id = tel_id;
+        (hsdata)->point_cor[itel].tel_id = tel_id;
+        (hsdata)->event.num_tel = (hsdata)->run_header.ntel;
+        (hsdata)->event.teldata[itel].tel_id = tel_id;
+        (hsdata)->event.trackdata[itel].tel_id = tel_id;
+        if ( ((hsdata)->event.teldata[itel].raw = 
+            (AdcData *) calloc(1,sizeof(AdcData))) == NULL )
+        {
+          Warning("Not enough memory");
+          exit(1);
+        }
+        (hsdata)->event.teldata[itel].raw->tel_id = tel_id;
+        if ( ((hsdata)->event.teldata[itel].pixtm =
+            (PixelTiming *) calloc(1,sizeof(PixelTiming))) == NULL )
+        {
+          Warning("Not enough memory");
+          exit(1);
+        }
+        (hsdata)->event.teldata[itel].pixtm->tel_id = tel_id;
+        if ( ((hsdata)->event.teldata[itel].img = 
+            (ImgData *) calloc(2,sizeof(ImgData))) == NULL )
+        {
+          Warning("Not enough memory");
+          exit(1);
+        }
+        (hsdata)->event.teldata[itel].max_image_sets = 2;
+        (hsdata)->event.teldata[itel].img[0].tel_id = tel_id;
+        (hsdata)->event.teldata[itel].img[1].tel_id = tel_id;
+        (hsdata)->tel_moni[itel].tel_id = tel_id;
+        (hsdata)->tel_lascal[itel].tel_id = tel_id;
+      }
+  
+
+      break;
+    // end case IO_TYPE_HESS_RUNHEADER:
+      /* =================================================== */
+    case IO_TYPE_HESS_MCRUNHEADER:
+      
+      rc = read_hess_mcrunheader(iobuf,&(hsdata)->mc_run_header);
+      break;
+      /* =================================================== */
+    case IO_TYPE_MC_INPUTCFG:
+      {
+      }
+      break;
+      /* =================================================== */
+    case 70: /* How sim_hessarray was run and how it was configured. */
+      break;
+
+      /* =================================================== */
+    case IO_TYPE_HESS_CAMSETTINGS:
+
+      tel_id = item_header.ident; // Telescope ID is in the header
+      if ( (itel = find_tel_idx(tel_id)) < 0 )
+      {
+        char msg[256];
+        snprintf(msg,sizeof(msg)-1,
+           "Camera settings for unknown telescope %d.", tel_id);
+        Warning(msg);
+        exit(1);
+      }
+      rc = read_hess_camsettings(iobuf,&(hsdata)->camera_set[itel]);
+
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_CAMORGAN:
+
+      tel_id = item_header.ident; // Telescope ID is in the header
+      if ( (itel = find_tel_idx(tel_id)) < 0 )
+      {
+        char msg[256];
+        snprintf(msg,sizeof(msg)-1,
+           "Camera organisation for unknown telescope %d.", tel_id);
+        Warning(msg);
+        exit(1);
+      }
+      rc = read_hess_camorgan(iobuf,&(hsdata)->camera_org[itel]);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_PIXELSET:
+      tel_id = item_header.ident; // Telescope ID is in the header
+      if ( (itel = find_tel_idx(tel_id)) < 0 )
+      {
+        char msg[256];
+        snprintf(msg,sizeof(msg)-1,
+           "Pixel settings for unknown telescope %d.", tel_id);
+        Warning(msg);
+        exit(1);
+      }
+      rc = read_hess_pixelset(iobuf,&(hsdata)->pixel_set[itel]);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_PIXELDISABLE:
+      tel_id = item_header.ident; // Telescope ID is in the header
+      if ( (itel = find_tel_idx(tel_id)) < 0 )
+      {
+        char msg[256];
+        snprintf(msg,sizeof(msg)-1,
+           "Pixel disable block for unknown telescope %d.", tel_id);
+        Warning(msg);
+        exit(1);
+      }
+      rc = read_hess_pixeldis(iobuf,&(hsdata)->pixel_disabled[itel]);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_CAMSOFTSET:
+      tel_id = item_header.ident; // Telescope ID is in the header
+      if ( (itel = find_tel_idx(tel_id)) < 0 )
+      {
+        char msg[256];
+        snprintf(msg,sizeof(msg)-1,
+           "Camera software settings for unknown telescope %d.", tel_id);
+        Warning(msg);
+        exit(1);
+      }
+      rc = read_hess_camsoftset(iobuf,&(hsdata)->cam_soft_set[itel]);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_POINTINGCOR:
+      tel_id = item_header.ident; // Telescope ID is in the header
+      if ( (itel = find_tel_idx(tel_id)) < 0 )
+      {
+        char msg[256];
+        snprintf(msg,sizeof(msg)-1,
+           "Pointing correction for unknown telescope %d.", tel_id);
+        Warning(msg);
+        exit(1);
+      }
+      rc = read_hess_pointingcor(iobuf,&(hsdata)->point_cor[itel]);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_TRACKSET:
+      tel_id = item_header.ident; // Telescope ID is in the header
+      if ( (itel = find_tel_idx(tel_id)) < 0 )
+      {
+        char msg[256];
+        snprintf(msg,sizeof(msg)-1,
+           "Tracking settings for unknown telescope %d.", tel_id);
+        Warning(msg);
+        exit(1);
+      }
+      rc = read_hess_trackset(iobuf,&(hsdata)->tracking_set[itel]);
+      break;
+      /* =================================================== */
+      /* =============   IO_TYPE_HESS_EVENT  =============== */
+      /* =================================================== */
+    case IO_TYPE_HESS_EVENT:
+      rc = read_hess_event(iobuf,&(hsdata)->event,-1);
+      *event_id = item_header.ident;
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_CALIBEVENT:
+      {
+        printf("RDLR: CALIBEVENT!\n");
+      }
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_MC_SHOWER:
+      rc = read_hess_mc_shower(iobuf,&(hsdata)->mc_shower);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_MC_EVENT:
+      rc = read_hess_mc_event(iobuf,&(hsdata)->mc_event);
+
+      break;
+      /* =================================================== */
+    case IO_TYPE_MC_TELARRAY:
+      if ( hsdata && (hsdata)->run_header.ntel > 0 )
+      {
+        rc = read_hess_mc_phot(iobuf,&(hsdata)->mc_event);
+      } 
+      break;
+      /* =================================================== */
+      /* With extended output option activated, the particles
+   arriving at ground level would be stored as seemingly
+   stray photon bunch block. */
+    case IO_TYPE_MC_PHOTONS:
+      break;
+      /* =================================================== */
+    case IO_TYPE_MC_RUNH:
+    case IO_TYPE_MC_EVTH:
+    case IO_TYPE_MC_EVTE:
+    case IO_TYPE_MC_RUNE:
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_MC_PE_SUM:
+      rc = read_hess_mc_pe_sum(iobuf,&(hsdata)->mc_event.mc_pesum);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_TEL_MONI:
+      // Telescope ID among others in the header
+      tel_id = (item_header.ident & 0xff) | 
+        ((item_header.ident & 0x3f000000) >> 16); 
+      if ( (itel = find_tel_idx(tel_id)) < 0 )
+      {
+        char msg[256];
+        snprintf(msg,sizeof(msg)-1,
+        "Telescope monitor block for unknown telescope %d.", tel_id);
+        Warning(msg);
+        exit(1);
+      }
+      rc = read_hess_tel_monitor(iobuf,&(hsdata)->tel_moni[itel]);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_LASCAL:
+      tel_id = item_header.ident; // Telescope ID is in the header
+      if ( (itel = find_tel_idx(tel_id)) < 0 )
+      {
+        char msg[256];
+        snprintf(msg,sizeof(msg)-1,
+           "Laser/LED calibration for unknown telescope %d.", tel_id);
+        Warning(msg);
+        exit(1);
+      }
+      rc = read_hess_laser_calib(iobuf,&hsdata->tel_lascal[itel]);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_RUNSTAT:
+      rc = read_hess_run_stat(iobuf,&hsdata->run_stat);
+      break;
+      /* =================================================== */
+    case IO_TYPE_HESS_MC_RUNSTAT:
+      rc = read_hess_mc_run_stat(iobuf,&hsdata->mc_run_stat);
+      break;
+      /* (End-of-job or DST) histograms */
+    case 100:
+      {
+      }
+      break;
+    default:
+      if ( !ignore )
+      fprintf(stderr,"WARNING: Ignoring unknown data block type %ld\n",item_header.type);
+    } // end switch item_header.type
+
+  /* What did we actually get? */
+  return (int) item_header.type;
+}
+
