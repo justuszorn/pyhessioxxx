@@ -10,5 +10,8 @@ prompt%> ./build.sh
 prompt%> export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:hessioxxx/lib
 
 3/ Execute test file
-prompt%> python test.py
+prompt%> python test.py -h
+or
+prompt%> python test.py -f ~/Downloads/gamma_20deg_0deg_run31964___cta-prod2_desert-1640m-Aar.simtel.gz --tel 4 --pix 40 --plot
+
 

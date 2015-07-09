@@ -85,6 +85,7 @@ double calibrate_pixel_amplitude(AllHessData *hsdata, int itel, int ipix,
         hsdata->tel_moni[itel].pedestal[HI_GAIN][i]) : 0.;
    npe_hg = sig_hg * hsdata->tel_lascal[itel].calib[HI_GAIN][i];
 
+
 #if (H_MAX_GAINS >= 2 )
    lg_known = hsdata->event.teldata[itel].raw->adc_known[LO_GAIN][i];
    sig_lg = lg_known ? (hsdata->event.teldata[itel].raw->adc_sum[LO_GAIN][i] -
@@ -192,7 +193,7 @@ static void print_hess_event_4prototype (AllHessData *hsdata, int evt_id, int le
 {
   // Check if in the current configuration enough telescopes (>=2) give trigger in this event
   int itel=0;
-  int tti=0, nout=0;raw->num_gains
+  int tti=0, nout=0;
   for(tti=0;tti<hsdata->event.central.num_teltrg;tti++)
     {
       int tid = hsdata->event.central.teltrg_list[tti];

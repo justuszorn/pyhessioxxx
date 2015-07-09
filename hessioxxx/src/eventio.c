@@ -458,7 +458,7 @@ int extend_io_buffer (IO_BUFFER *iobuf, unsigned next_byte, long increment)
       char msg[256];
       sprintf(msg,"I/O block extended by %ld to %ld bytes",
          increment,new_length);
-      Information(msg);
+      //Information(msg);
       iobuf->buffer = tptr;
       iobuf->data = iobuf->buffer + offset;
       iobuf->buflen = new_length;

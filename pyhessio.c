@@ -4,8 +4,8 @@
  * Suggestions/complains to jacquem@lapp.in2p3.fr
  *
  */
-#include "initial.h"      /* This file includes others as required. */
-#include "io_basic.h"     /* This file includes others as required. */
+#include "initial.h"      
+#include "io_basic.h"  
 #include "io_hess.h"
 #include "fileopen.h"
 #include "stdio.h"
@@ -16,7 +16,8 @@ int file_open(const char* filename);
 void close_file(void);
 int fill_hsdata(int* event_id);
 int get_run_number(void);
-void get_pixel_data(int telescopeId, int channel, uint16_t *data );
+void get_adc_sample(int telescopeId, int channel, uint16_t *data );
+void get_adc_sum(int telescopeId, int channel, uint32_t *data );
 
 
 static AllHessData *hsdata = NULL;
@@ -61,8 +62,6 @@ int file_open(const char* filename)
     }
     iobuf->max_length = 100000000L;
 
-    //input_fname = "/home/jacquem/Downloads/gamma_20deg_0deg_run31964___cta-prod2_desert-1640m-Aar.simtel.gz";
-
     if ( (iobuf->input_file = fileopen(filename,READ_BINARY)) == NULL )
     {
       perror(filename);
@@ -99,7 +98,6 @@ int move_to_next_event(int *event_id)
   }
  return  rc; 
 }
-
 
 /*--------------------------------*/
 //  Cleanly close iobuf
@@ -187,40 +185,76 @@ int get_num_channel(int telescopeId)
 }
 
 //----------------------------------------------------------------
-void get_pixel_data(int telescopeId, int channel, uint16_t *data )
+void get_adc_sample(int telescopeId, int channel, uint16_t *data )
 //----------------------------------------------------------------
 // Return Pulses sampled
 {
   if ( hsdata != NULL)
   {
-	int itel = getTelscopeIndex(telescopeId);
-	AdcData* raw = hsdata->event.teldata[itel].raw;
+	  int itel = getTelscopeIndex(telescopeId);
+ 	  AdcData* raw = hsdata->event.teldata[itel].raw;
     if ( raw != NULL && raw->known  ) // If triggered telescopes
     {
       int ipix =0.;
       for(ipix=0.;ipix<raw->num_pixels;ipix++) //  loop over pixels
       {
-        if(!raw->significant[ipix]){
-        }
-         else {
-           int igain=0;
-           for(igain=0.;igain<raw->num_gains;igain++)
-           {
-			   if(raw->num_gains == channel && raw->num_samples>0)
-			   {
-				 int isamp=0.;
-				 for (isamp=0.;isamp<raw->num_samples;isamp++)
-				 {
-					 *data++ = raw->adc_sample[igain][ipix][isamp];
-
-			     }
-               }
-           }
-        }
-
+        if(raw->significant[ipix])
+        {
+          int isamp=0.;
+          for (isamp=0.;isamp<raw->num_samples;isamp++)
+            { *data++ = raw->adc_sample[channel][ipix][isamp]; }
+        } // end if raw->significant[ipix]
       }  // end of  loop over pixels
-
     } // end if triggered telescopes
+  }
+}
+
+//----------------------------------------------------------------
+void get_adc_sum(int telescopeId, int channel, uint32_t *data )
+//----------------------------------------------------------------
+{
+  if ( hsdata != NULL)
+  {
+	  int itel = getTelscopeIndex(telescopeId);
+ 	  AdcData* raw = hsdata->event.teldata[itel].raw;
+    if ( raw != NULL && raw->known  ) // If triggered telescopes
+    {
+      int ipix =0.;
+      for(ipix=0.;ipix<raw->num_pixels;ipix++) //  loop over pixels
+      {
+        *data++ = raw->adc_sum[channel][ipix];
+      }  // end of  loop over pixels
+    } // end if triggered telescopes
+  }
+}
+//----------------------------------------------------------------
+// Return needed informations for calibration process
+//   double pedestal[H_MAX_GAINS][H_MAX_PIX];  ///< Average pedestal on ADC sums
+//   double calib[H_MAX_GAINS][H_MAX_PIX]; /**< ADC to laser/LED p.e. conversion,
+//
+
+void get_data_for_calibration(int telescopeId, double* pedestal, double* calib )
+//----------------------------------------------------------------
+// Return Pulses sampled
+{
+  if ( hsdata != NULL)
+  {
+	  int itel = getTelscopeIndex(telescopeId);
+ 	  TelMoniData monitor= hsdata->tel_moni[itel];
+ 	  LasCalData  calibration = hsdata->tel_lascal[itel];
+      int ipix =0.;
+      int num_pixels = hsdata->camera_set[itel].num_pixels;
+      for(ipix=0.;ipix<num_pixels;ipix++) //  loop over pixels
+      {
+        int igain=0, num_gain=2; // LOW and HI Gain
+        for(igain=0;igain<num_gain;igain++)
+        {
+        	*pedestal++=monitor.pedestal[igain][ipix];
+        	*calib++=calibration.calib[igain][ipix];
+        	 //printf("pedestal[%d][%d][%f]\n",igain,ipix,monitor.pedestal[igain][ipix]);
+        	 //printf("calib[%d][%d][%f]\n",igain,ipix,calibration.calib[igain][ipix]);
+        } // end loop gain
+      }  // end of  loop over pixels
   }
 }
 //----------------------------------------------------------------
@@ -231,11 +265,7 @@ int get_num_pixels(int telescopeId)
   if ( hsdata != NULL)
   {
 	int itel = getTelscopeIndex(telescopeId);
-    AdcData* raw = hsdata->event.teldata[itel].raw;
-    if ( raw != NULL ) // raw->known  )
-    {
-      return raw->num_pixels;
-    }
+	return hsdata->camera_set[itel].num_pixels;
   }
   return 0;
 }

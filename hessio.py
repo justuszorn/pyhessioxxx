@@ -4,7 +4,7 @@ import ctypes
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 
-_path = os.path.dirname('__file__')
+_path = os.path.dirname(__file__)
 lib = np.ctypeslib.load_library('pyhessio', _path)
 
 lib.get_teldata_list.restype = None
@@ -13,13 +13,17 @@ lib.get_teldata_list.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int, flags="C_C
 lib.get_num_channel.argtypes = [ctypes.c_int]
 lib.get_num_samples.argtypes = [ctypes.c_int]
 lib.get_num_pixels.argtypes = [ctypes.c_int]
-lib.get_pixel_data.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_int16, flags="C_CONTIGUOUS")]
+lib.get_adc_sample.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_int16, flags="C_CONTIGUOUS")]
+lib.get_adc_sum.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_int32, flags="C_CONTIGUOUS")]
+lib.get_data_for_calibration.argtypes=[ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),\
+                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
+                              
 lib.move_to_next_event.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int)]
 lib.file_open.argtypes = [ctypes.c_char_p]
 
 
 #--------------------------------------
-def move_to_next_event():
+def move_to_next_event(limit=0):
     """ Read data form input file
         and fill corresponding container
         Data can be then access with 
@@ -28,16 +32,16 @@ def move_to_next_event():
     """
     result = np.zeros(1,dtype=np.int32)
     res = 0
-    while  res >= 0: 
+    evt_num = 0
+    while  res >= 0 and ( limit == 0 or evt_num < limit): 
       res = lib.move_to_next_event(result)
       yield res,result[0]
+      evt_num = evt_num + 1
 
     yield res,result[0]
 
 def get_run_number():
     return lib.get_run_number()
-#--------------------------------------
-
 #--------------------------------------
 def file_open(filename):
   """
@@ -119,15 +123,43 @@ def printAmp():
 #--------------------------------------
 
 #--------------------------------------
-def get_pixel_data(telescopeId,channel):
+def get_adc_sample(telescopeId,channel):
   """
    Return pulses sampled
   """
   npix = get_num_pixels(telescopeId)
   ntimeslices = get_num_samples(telescopeId)
   data = np.zeros(npix*ntimeslices,dtype=np.int16)
-  lib.get_pixel_data(telescopeId,channel ,data)
+  lib.get_adc_sample(telescopeId,channel ,data)
 
   # convert 1D array to 2D array
   d_data = data.reshape(npix,ntimeslices)
   return d_data
+
+#--------------------------------------
+def get_adc_sum(telescopeId,channel):
+  """
+   Return sum of ADC values. 
+  """
+  npix = get_num_pixels(telescopeId)
+  data = np.zeros(npix,dtype=np.int32)
+  lib.get_adc_sum(telescopeId,channel ,data)
+
+  return data
+#--------------------------------------
+def get_data_for_calibration(telescopeId):
+  """
+   Return pedestal, calibration 2D array
+  """
+  npix = get_num_pixels(telescopeId)
+
+  ngain = 2 # LOW and HI Gain
+  pedestal = np.zeros(ngain*npix,dtype=np.double)
+  calibration = np.zeros(ngain*npix,dtype=np.double)
+
+  lib.get_data_for_calibration(telescopeId,pedestal,calibration)
+  d_ped = pedestal.reshape(ngain,npix)
+  d_cal = calibration.reshape(ngain,npix)
+
+
+  return d_ped, d_cal

@@ -3,3 +3,4 @@ hessioxxx/bin/
 hessioxxx/lib/
 hessioxxx/out/
 pyhessio.so
+hessioxxx/src/read_cta_4toy.c
