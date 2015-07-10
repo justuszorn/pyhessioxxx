@@ -28,12 +28,6 @@ if __name__ == '__main__':
 
   if file_open(args.filename) == 0 :
 
-        
-    try:
-      print('pedestal',pedestal)
-      print('calibration',calibration)
-    except NameError :
-       print("Calibration information not found",file=sys.stderr)
 
     evt_num=0
     intensity_evts=list()
@@ -66,6 +60,7 @@ if __name__ == '__main__':
         sig = data_ch_sum[args.pix] - pedestal[channel][args.pix]
         npe = sig * calibration[channel][args.pix] * CALIB_SCALE;
         npe_evts.append(npe)
+        pos_x,pos_y = get_pixel_position(args.tel)
 
   
       except IndexError:
@@ -74,6 +69,7 @@ if __name__ == '__main__':
         break
 
       evt_num=evt_num+1
+    print("pixel pos x=", pos_x[args.pix],"pos y=",pos_y[args.pix])
 
     if(args.plot):
       import matplotlib.mlab as mlab

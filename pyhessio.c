@@ -232,10 +232,8 @@ void get_adc_sum(int telescopeId, int channel, uint32_t *data )
 //   double pedestal[H_MAX_GAINS][H_MAX_PIX];  ///< Average pedestal on ADC sums
 //   double calib[H_MAX_GAINS][H_MAX_PIX]; /**< ADC to laser/LED p.e. conversion,
 //
-
 void get_data_for_calibration(int telescopeId, double* pedestal, double* calib )
 //----------------------------------------------------------------
-// Return Pulses sampled
 {
   if ( hsdata != NULL)
   {
@@ -255,6 +253,24 @@ void get_data_for_calibration(int telescopeId, double* pedestal, double* calib )
         	 //printf("calib[%d][%d][%f]\n",igain,ipix,calibration.calib[igain][ipix]);
         } // end loop gain
       }  // end of  loop over pixels
+  }
+}
+//----------------------------------------------------------------
+//----------------------------------------------------------------
+// Return pixel position information
+//
+void get_pixel_position(int telescopeId, double* xpos, double* ypos )
+{
+  if ( hsdata != NULL)
+  {
+	  int itel = getTelscopeIndex(telescopeId);
+      int ipix =0.;
+      int num_pixels = hsdata->camera_set[itel].num_pixels;
+      for(ipix=0.;ipix<num_pixels;ipix++) //  loop over pixels
+      {
+    	  *xpos++=hsdata->camera_set[itel].xpix[ipix];
+    	  *ypos++=hsdata->camera_set[itel].ypix[ipix];
+      }
   }
 }
 //----------------------------------------------------------------

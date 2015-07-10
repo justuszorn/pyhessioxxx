@@ -18,6 +18,8 @@ lib.get_adc_sum.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(cty
 lib.get_data_for_calibration.argtypes=[ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),\
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
                               
+lib.get_pixel_position.argtypes=[ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),\
+                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
 lib.move_to_next_event.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int)]
 lib.file_open.argtypes = [ctypes.c_char_p]
 
@@ -40,6 +42,7 @@ def move_to_next_event(limit=0):
 
     yield res,result[0]
 
+#--------------------------------------
 def get_run_number():
     return lib.get_run_number()
 #--------------------------------------
@@ -163,3 +166,17 @@ def get_data_for_calibration(telescopeId):
 
 
   return d_ped, d_cal
+  
+  #--------------------------------------
+def get_pixel_position(telescopeId):
+  """
+   Return pixels position for a telecsope id
+  """
+  npix = get_num_pixels(telescopeId)
+
+  pos_x = np.zeros(npix,dtype=np.double)
+  pos_y = np.zeros(npix,dtype=np.double)
+
+  lib.get_pixel_position(telescopeId,pos_x,pos_y)
+
+  return pos_x, pos_y
