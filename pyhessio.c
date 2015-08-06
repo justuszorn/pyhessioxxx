@@ -96,7 +96,7 @@ int move_to_next_event(int *event_id)
        return -1; 
     }  
   }
- return  rc; 
+ return  get_run_number();
 }
 
 /*--------------------------------*/
