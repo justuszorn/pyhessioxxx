@@ -166,6 +166,20 @@ void get_teldata_list(int* list)
     }
   }
 }
+
+//-------------------------------------------
+// Return  Global event count
+//-------------------------------------------
+int get_global_event_count(void)
+{
+  if ( hsdata != NULL)
+  {
+	  	 return hsdata->event.central.glob_count;
+  }
+  return -1;
+}
+
+
 //----------------------------------------------------------------
 // Return he number of different gains per pixel for a telscope id
 //----------------------------------------------------------------
