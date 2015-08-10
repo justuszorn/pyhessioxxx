@@ -9,8 +9,6 @@ except ImportError as err:
     assert(err)
 
 def test_hessio():
-  rc = 0
-  run = 0
   tel_id = 47
   channel = 0
   
@@ -18,79 +16,27 @@ def test_hessio():
 
   evt_num=0
   for run_id, event_id in move_to_next_event(limit = 1):
-    print("event_id", event_id)
     assert run_id == 31964
     assert event_id == 408
- 
 
-    tel_ids = get_teldata_list()
-    res = [38, 47]
-    assert set(tel_ids) == set(res)
+    assert set(get_teldata_list()) == set([38, 47])
+    assert  get_num_pixels(tel_id)== 2048
 
-    nb_pixel =  get_num_pixels(tel_id)
-    print(nb_pixel)
-    assert nb_pixel == 2048
     data_ch = get_adc_sample(channel = channel , telescopeId = tel_id)
-    print(data_ch[10:11])
     assert np.array_equal(data_ch[10:11],[[22,20,21,24,22,19,22,27,22,21,20,22,21,20,19,22,23,20,22,20,20,23,20,20,22]]) == True
+
     data_ch_sum = get_adc_sum(channel = channel , telescopeId = tel_id)
-    print(data_ch_sum[50:51])
+    assert  np.array_equal(data_ch_sum[0:10], [451, 550,505,465,519,467,505,496,501,478]) == True
 
-    evt_num=evt_num+1
-    print("evt_num", evt_num)
-
-  assert()
-  """
-      nb_sample = get_num_samples(tel_id) 
+    nb_sample = get_num_samples(tel_id) 
+    assert nb_sample == 25
       
-      try: 
-        # get trace for pixel args.pix and channel channel
-        trace = data_ch[args.pix]
-        # sum samples for that trace:
-        intensity = trace.sum()
-        # And intensity to  intensity_evts list
-        intensity_evts.append(intensity)
-        # Get pedestal and calibration information
-        pedestal, calibration = get_data_for_calibration(args.tel)
-        #print(" calibration")
+    pedestal, calibration = get_data_for_calibration(tel_id)
+    assert pedestal[0][0] == 457.36550903320312
+    assert calibration[0][2] ==  0.092817604541778564
         
-        sig = data_ch_sum[args.pix] - pedestal[channel][args.pix]
-        npe = sig * calibration[channel][args.pix] * CALIB_SCALE;
-        npe_evts.append(npe)
-        pos_x,pos_y = get_pixel_position(args.tel)
+    pos_x,pos_y = get_pixel_position(tel_id)
+    assert pos_x[2] == -0.085799999535083771
+    assert pos_y[2] == -0.14880000054836273
 
 
-      except IndexError:
-        print("Telescope id", args.tel, "does not have pixel id", args.pix,file=sys.stderr)
-        args.plot = False
-        break
-
-      evt_num=evt_num+1
-    print("pixel pos x=", pos_x[args.pix],"pos y=",pos_y[args.pix])
-
-    if(args.plot):
-      import matplotlib.mlab as mlab
-      import matplotlib.pyplot as plt
-
-      # example data
-      mu = 100 # mean of distribution
-      sigma = 15 # standard deviation of distribution
-
-      num_bins = 50
-      # the histogram of the data
-      n, bins, patches = plt.hist(npe_evts, num_bins, normed=1, facecolor='green', alpha=0.5)
-      # add a 'best fit' line
-      y = mlab.normpdf(bins, mu, sigma)
-      plt.plot(bins, y, 'r--')
-      plt.xlabel('Smarts')
-      plt.ylabel('Probability')
-      title = 'ADC sum for telescope ' + str(args.tel)  + ', pixel '+  \
-      str(args.pix)+ ', channel ' +   str(args.channel)
-      plt.title(title)
-
-      # Tweak spacing to prevent clipping of ylabel
-      plt.subplots_adjust(left=0.15)
-      plt.show()
-
-    print("\n\nDone")
-  """

@@ -42,7 +42,6 @@ def move_to_next_event(limit=0):
       yield res,result[0]
       evt_num = evt_num + 1
 
-    yield res,result[0]
 
 #--------------------------------------
 def file_open(filename):
