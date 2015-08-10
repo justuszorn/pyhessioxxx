@@ -9,6 +9,23 @@ except ImportError as err:
     assert(err)
 
 def test_hessio():
+  """
+v move_to_next_event(limit=0):
+v file_open(filename):
+close_file():
+v get_global_event_count():
+v get_run_number():
+v get_num_telescope():
+v get_teldata_list():
+v get_num_teldata():
+v get_num_channel(telescopeId):
+v get_num_pixels(telescopeId):
+v get_num_samples(telescopeId):
+v get_adc_sample(telescopeId,channel):
+v get_adc_sum(telescopeId,channel):
+v get_data_for_calibration(telescopeId):
+v get_pixel_position(telescopeId):
+  """
   tel_id = 47
   channel = 0
   
@@ -18,6 +35,12 @@ def test_hessio():
   for run_id, event_id in move_to_next_event(limit = 1):
     assert run_id == 31964
     assert event_id == 408
+    
+    assert get_run_number() == 31964
+    assert get_global_event_count() == 408
+    assert get_num_telescope() == 126
+    assert get_num_teldata() == 2
+    assert get_num_channel(tel_id) == 1
 
     assert set(get_teldata_list()) == set([38, 47])
     assert  get_num_pixels(tel_id)== 2048
@@ -38,5 +61,5 @@ def test_hessio():
     pos_x,pos_y = get_pixel_position(tel_id)
     assert pos_x[2] == -0.085799999535083771
     assert pos_y[2] == -0.14880000054836273
-
-
+    
+    close_file()

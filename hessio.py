@@ -4,7 +4,7 @@ import ctypes
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 
-__all__ = ['move_to_next_event','file_open','close_file','get_global_event_count','get_run_number','get_num_telescope','get_teldata_list','get_num_teldata','get_num_channel','get_num_pixels','get_num_samples','printAmp','get_adc_sample','get_adc_sum','get_data_for_calibration','get_pixel_position']
+__all__ = ['move_to_next_event','file_open','close_file','get_global_event_count','get_run_number','get_num_telescope','get_teldata_list','get_num_teldata','get_num_channel','get_num_pixels','get_num_samples','get_adc_sample','get_adc_sum','get_data_for_calibration','get_pixel_position']
 
 _path = os.path.dirname(__file__)
 lib = np.ctypeslib.load_library('pyhessio', _path)
@@ -120,12 +120,6 @@ def get_num_samples(telescopeId):
   return lib.get_num_samples(telescopeId)
 #--------------------------------------
 
-#--------------------------------------
-def printAmp():
-  """
-   Return  the number of samples (time slices) recorded
-  """
-  lib.printAmp()
 #--------------------------------------
 
 #--------------------------------------
