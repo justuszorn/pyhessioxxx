@@ -198,6 +198,30 @@ int get_num_channel(int telescopeId)
   return 0;
 }
 
+//-------------------------------------------
+// Return  PixelTiming.timval[H_MAX_PIX][H_MAX_PIX_TIMES]
+//-------------------------------------------
+void get_pixelTiming_timval(int telescopeId,float *data)
+{
+  if ( hsdata != NULL)
+  {
+    int itel = getTelscopeIndex(telescopeId);
+    PixelTiming* pt = hsdata->event.teldata[itel].pixtm;
+	if ( pt != NULL )
+	{
+	//   float timval[H_MAX_PIX][H_MAX_PIX_TIMES]
+	  int ipix= 0;
+	  for (ipix = 0; ipix < pt->num_pixels; ipix++)
+	  {
+	    int itimes = 0;
+	    for (itimes = 0; itimes < pt->num_types && itimes<H_MAX_PIX_TIMES  ; itimes++)
+	    {
+	    	*data++ = pt->timval[ipix][itimes];
+	    }
+	  } // end for ipix
+	} // end if pt != NULL
+  } // end if hsdata
+}
 //----------------------------------------------------------------
 void get_adc_sample(int telescopeId, int channel, uint16_t *data )
 //----------------------------------------------------------------
@@ -205,8 +229,8 @@ void get_adc_sample(int telescopeId, int channel, uint16_t *data )
 {
   if ( hsdata != NULL)
   {
-	  int itel = getTelscopeIndex(telescopeId);
- 	  AdcData* raw = hsdata->event.teldata[itel].raw;
+	int itel = getTelscopeIndex(telescopeId);
+ 	AdcData* raw = hsdata->event.teldata[itel].raw;
     if ( raw != NULL && raw->known  ) // If triggered telescopes
     {
       int ipix =0.;
@@ -312,6 +336,22 @@ int get_num_samples(int telescopeId)
     if ( raw != NULL )//&& raw->known  )
     {
       return raw->num_samples;
+    }
+  }
+  return 0;
+}
+//-----------------------------------------------------
+// Return the number of different types of times can we store
+//-----------------------------------------------------
+int get_num_types(int telescopeId)
+{
+  if ( hsdata != NULL)
+  {
+	int itel = getTelscopeIndex(telescopeId);
+    PixelTiming* pt = hsdata->event.teldata[itel].pixtm;
+    if ( pt != NULL )
+    {
+      return pt->num_types;
     }
   }
   return 0;

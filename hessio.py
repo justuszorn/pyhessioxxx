@@ -4,7 +4,13 @@ import ctypes
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 
-__all__ = ['move_to_next_event','file_open','close_file','get_global_event_count','get_run_number','get_num_telescope','get_teldata_list','get_num_teldata','get_num_channel','get_num_pixels','get_num_samples','get_adc_sample','get_adc_sum','get_data_for_calibration','get_pixel_position']
+__all__ = ['move_to_next_event','file_open','close_file',
+           'get_global_event_count','get_run_number',
+           'get_num_telescope','get_teldata_list',
+           'get_num_teldata','get_num_channel','get_num_pixels',
+           'get_num_samples','get_adc_sample','get_adc_sum'
+           ,'get_data_for_calibration','get_pixel_position'
+           ,'get_pixelTiming_timval']
 
 _path = os.path.dirname(__file__)
 lib = np.ctypeslib.load_library('pyhessio', _path)
@@ -14,9 +20,11 @@ lib.close_file.restype = None
 lib.get_teldata_list.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int, flags="C_CONTIGUOUS")]
 lib.get_num_channel.argtypes = [ctypes.c_int]
 lib.get_num_samples.argtypes = [ctypes.c_int]
+lib.get_num_types.argtypes = [ctypes.c_int]
 lib.get_num_pixels.argtypes = [ctypes.c_int]
 lib.get_adc_sample.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_uint16, flags="C_CONTIGUOUS")]
 lib.get_adc_sum.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_int32, flags="C_CONTIGUOUS")]
+lib.get_pixelTiming_timval.argtypes = [ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_float, flags="C_CONTIGUOUS")]
 lib.get_data_for_calibration.argtypes=[ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),\
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
                               
@@ -42,7 +50,6 @@ def move_to_next_event(limit=0):
       if res != -1:
         yield res,result[0]
         evt_num = evt_num + 1
-
 
 #--------------------------------------
 def file_open(filename):
@@ -113,6 +120,11 @@ def get_num_pixels(telescopeId):
   return lib.get_num_pixels(telescopeId)
 #--------------------------------------
 
+def get_num_types(telescopeId):
+  """
+   Return how many different types of times can we store
+  """
+  return lib.get_num_types(telescopeId)
 #--------------------------------------
 def get_num_samples(telescopeId):
   """
@@ -121,9 +133,7 @@ def get_num_samples(telescopeId):
   return lib.get_num_samples(telescopeId)
 #--------------------------------------
 
-#--------------------------------------
 
-#--------------------------------------
 def get_adc_sample(telescopeId,channel):
   """
    Return pulses sampled
@@ -148,6 +158,19 @@ def get_adc_sum(telescopeId,channel):
   lib.get_adc_sum(telescopeId,channel ,data)
 
   return data
+#--------------------------------------
+def get_pixelTiming_timval(telescopeId):
+  """
+   Return PixelTiming.timval
+  """
+  npix = get_num_pixels(telescopeId)
+  ntimes = get_num_types(telescopeId)
+  data = np.zeros(npix*ntimes,dtype=np.float32)
+  lib.get_pixelTiming_timval(telescopeId,data)
+  d_data = data.reshape(npix,ntimes)
+  return d_data
+  
+
 #--------------------------------------
 def get_data_for_calibration(telescopeId):
   """

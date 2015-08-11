@@ -21,7 +21,7 @@ if __name__ == '__main__':
   run = 0
   limit = 0
   if args.limit : limit = args.limit
-  channel = 1
+  channel = 0
   if args.channel != None:
     channel = args.channel
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
       
       sig = data_ch_sum[args.pix] - pedestal[channel][args.pix]
       npe = sig * calibration[channel][args.pix] * CALIB_SCALE;
-      npe_evts.append(npe)
+      npe_evts.append(sig)
       pos_x,pos_y = get_pixel_position(args.tel)
 
 
@@ -79,18 +79,16 @@ if __name__ == '__main__':
 
     num_bins = 50
     # the histogram of the data
-    n, bins, patches = plt.hist(npe_evts, num_bins, normed=1, facecolor='green', alpha=0.5)
+    #n, bins, patches = plt.hist(npe_evts, num_bins, normed=1, facecolor='green', alpha=0.5)
     # add a 'best fit' line
-    y = mlab.normpdf(bins, mu, sigma)
-    plt.plot(bins, y, 'r--')
+    plt.plot(npe_evts)
     plt.xlabel('Smarts')
     plt.ylabel('Probability')
     title = 'ADC sum for telescope ' + str(args.tel)  + ', pixel '+  \
-    str(args.pix)+ ', channel ' +   str(args.channel)
+    str(args.pix)+ ', channel ' +   str(channel)
     plt.title(title)
 
     # Tweak spacing to prevent clipping of ylabel
-    plt.subplots_adjust(left=0.15)
     plt.show()
 
   print("\n\nDone")
