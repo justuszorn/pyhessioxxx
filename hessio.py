@@ -15,7 +15,7 @@ lib.get_teldata_list.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int, flags="C_C
 lib.get_num_channel.argtypes = [ctypes.c_int]
 lib.get_num_samples.argtypes = [ctypes.c_int]
 lib.get_num_pixels.argtypes = [ctypes.c_int]
-lib.get_adc_sample.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_int16, flags="C_CONTIGUOUS")]
+lib.get_adc_sample.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_uint16, flags="C_CONTIGUOUS")]
 lib.get_adc_sum.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_int32, flags="C_CONTIGUOUS")]
 lib.get_data_for_calibration.argtypes=[ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),\
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
@@ -39,8 +39,9 @@ def move_to_next_event(limit=0):
     evt_num = 0
     while  res >= 0 and ( limit == 0 or evt_num < limit): 
       res = lib.move_to_next_event(result)
-      yield res,result[0]
-      evt_num = evt_num + 1
+      if res != -1:
+        yield res,result[0]
+        evt_num = evt_num + 1
 
 
 #--------------------------------------
@@ -129,7 +130,8 @@ def get_adc_sample(telescopeId,channel):
   """
   npix = get_num_pixels(telescopeId)
   ntimeslices = get_num_samples(telescopeId)
-  data = np.zeros(npix*ntimeslices,dtype=np.int16)
+  #print("npix:",npix,"ntimeslices",ntimeslices)
+  data = np.zeros(npix*ntimeslices,dtype=np.uint16)
   lib.get_adc_sample(telescopeId,channel ,data)
 
   # convert 1D array to 2D array
