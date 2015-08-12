@@ -70,7 +70,6 @@ if __name__ == '__main__':
   print("pixel pos x=", pos_x[args.pix],"pos y=",pos_y[args.pix])
 
   if(args.plot):
-    import matplotlib.mlab as mlab
     import matplotlib.pyplot as plt
 
     # example data

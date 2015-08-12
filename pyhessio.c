@@ -324,6 +324,19 @@ int get_num_pixels(int telescopeId)
   return 0;
 }
 
+//----------------------------------------------------------------
+// Return total area of individual mirrors corrected  for inclination [m^2].
+//----------------------------------------------------------------
+double get_mirror_area(int telescopeId)
+{
+  if ( hsdata != NULL)
+  {
+	int itel = getTelscopeIndex(telescopeId);
+	double ma = hsdata->camera_set[itel].mirror_area;
+	return ma;
+  }
+  return 0.;
+}
 //-----------------------------------------------------
 // Return the number of samples (time slices) recorded
 //-----------------------------------------------------
