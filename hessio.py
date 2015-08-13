@@ -6,9 +6,10 @@ __all__ = ['move_to_next_event','file_open','close_file',
            'get_global_event_count','get_run_number',
            'get_num_telescope','get_teldata_list',
            'get_num_teldata','get_num_channel','get_num_pixels',
-           'get_num_samples','get_adc_sample','get_adc_sum'
-           ,'get_data_for_calibration','get_pixel_position'
-           ,'get_pixelTiming_timval','get_mirror_area']
+           'get_num_samples','get_adc_sample','get_adc_sum',
+           'get_data_for_calibration','get_pixel_position',
+           'get_pixelTiming_timval','get_mirror_area',
+           'get_pixel_timing_threshold','get_pixel_timing_peak_global']
 
 _path = os.path.dirname(__file__)
 lib = np.ctypeslib.load_library('pyhessio', _path)
@@ -19,6 +20,9 @@ lib.get_teldata_list.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int, flags="C_C
 lib.get_num_channel.argtypes = [ctypes.c_int]
 lib.get_num_samples.argtypes = [ctypes.c_int]
 lib.get_num_types.argtypes = [ctypes.c_int]
+lib.get_pixel_timing_threshold.argtypes = [ctypes.c_int]
+lib.get_pixel_timing_peak_global.argtypes = [ctypes.c_int]
+lib.get_pixel_timing_peak_global.restype = ctypes.c_float
 lib.get_num_pixels.argtypes = [ctypes.c_int]
 lib.get_mirror_area.argtypes = [ctypes.c_int]
 lib.get_mirror_area.restype = ctypes.c_double
@@ -143,6 +147,28 @@ def get_num_pixels(telescopeId):
     telescopeId: int
     """
     return lib.get_num_pixels(telescopeId)
+
+def get_pixel_timing_threshold(telescopeId):
+    """
+    Returns PixelTiming threshold:
+    - Minimum base-to-peak raw amplitude difference applied in pixel selection
+
+    Parameters
+    ----------
+    telescopeId: int
+    """
+    return lib.get_pixel_timing_threshold(telescopeId)
+
+def get_pixel_timing_peak_global(telescopeId):
+    """
+    Returns PixelTiming peak_global:
+     - Camera-wide (mean) peak position [time slices]
+
+    Parameters
+    ----------
+    telescopeId: int
+    """
+    return float(lib.get_pixel_timing_peak_global(telescopeId))
 
 def get_num_types(telescopeId):
     """

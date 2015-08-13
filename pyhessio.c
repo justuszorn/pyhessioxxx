@@ -369,6 +369,40 @@ int get_num_types(int telescopeId)
   }
   return 0;
 }
+//---------------------------------------------
+// Return PixelTiming threshold:
+//  - Minimum base-to-peak raw amplitude difference applied in pixel selection
+//-----------------------------------------------------
+int get_pixel_timing_threshold(int telescopeId)
+{
+  if ( hsdata != NULL)
+  {
+	int itel = getTelscopeIndex(telescopeId);
+    PixelTiming* pt = hsdata->event.teldata[itel].pixtm;
+    if ( pt != NULL )
+    {
+      return pt->threshold;
+    }
+  }
+  return 0;
+}
+//---------------------------------------------
+// Return PixelTiming peak_global:
+//   Camera-wide (mean) peak position [time slices]
+//-----------------------------------------------------
+float get_pixel_timing_peak_global(int telescopeId)
+{
+  if ( hsdata != NULL)
+  {
+	int itel = getTelscopeIndex(telescopeId);
+    PixelTiming* pt = hsdata->event.teldata[itel].pixtm;
+    if ( pt != NULL )
+    {
+      return pt->peak_global;
+    }
+  }
+  return 0.;
+}
 //--------------------------------------------------
 // fill hsdata global variable by decoding data file
 //--------------------------------------------------
