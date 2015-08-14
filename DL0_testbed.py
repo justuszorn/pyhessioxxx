@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import argparse
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
-from math import trunc
 
 
 LSTMA=400
@@ -81,7 +80,7 @@ def get_data(filename,wanted,xls=None,mode=NORMAL):
                     counters[tel_type][hist_type]=0
 
             # get list of telescope with data
-            tel_list = get_teldata_list()
+            tel_list = get_telescope_with_data_list()
 
             # loop over telescope id for telescope with data
             for tel_id in tel_list: 
@@ -92,7 +91,7 @@ def get_data(filename,wanted,xls=None,mode=NORMAL):
                 counters[tel_type][TRIGGER] = counters[tel_type][TRIGGER] + 1 
 
                 adc_sums = get_adc_sum(tel_id,0)
-                tim_vals = get_pixelTiming_timval(tel_id)# get a 2D np array
+                tim_vals = get_pixel_timing_timval(tel_id)# get a 2D np array
                 peak = get_pixel_timing_peak_global(tel_id)
                 
                 if tel_id == 4 or tel_id == 25 or tel_id == 50 or tel_id == 110:
@@ -127,22 +126,27 @@ def get_data(filename,wanted,xls=None,mode=NORMAL):
                 for item in couple_list:
                         tel_id = item[0]
                         pix_id = item[1]
-
-                        channel = 0
-                        adc_sample = get_adc_sample(tel_id,channel)
-                        time_slice = 7
-                        trace = adc_sample[pix_id]
-                        sample_7 = trace[time_slice]
-                        adc_sum = get_adc_sum(tel_id,channel)
-                        time_val = get_pixelTiming_timval(tel_id)
-                        
-                        current=(run_id,glob_count,tel_id,pix_id,int(sample_7),
-                        int(adc_sum[pix_id]),
-                        float(time_val[pix_id][1]),
-                        float(time_val[pix_id][5]))
+                        if tel_id in tel_list:
+                            channel = 0
+                            adc_sample = get_adc_sample(tel_id,channel)
+                            time_slice = 7
+                            trace = adc_sample[pix_id]
+                            sample_7 = trace[time_slice]
+                            adc_sum = get_adc_sum(tel_id,channel)
+                            time_val = get_pixel_timing_timval(tel_id)
+                                
+                            current=(run_id,glob_count,tel_id,pix_id,int(sample_7),
+                            int(adc_sum[pix_id]),
+                            float(time_val[pix_id][1]),
+                            float(time_val[pix_id][5]))
+                        else: # no trigger for this telescope during this event
+                            current=(run_id,glob_count,tel_id,pix_id,'NA',
+                            'NA',
+                            'NA',
+                            'NA')   
                         if xls != None:
                             xls.append(current)
-                            
+                                    
         # if mode = WRITE, write data in a data file
         if  mode == WRITE: 
             for tel_type in TEL_TYPE:

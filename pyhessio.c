@@ -11,32 +11,48 @@
 #include "stdio.h"
 
 
-int move_to_next_event(int *event_id);
-int file_open(const char* filename);
 void close_file(void);
-int fill_hsdata(int* event_id);
-int get_run_number(void);
-void get_adc_sample(int telescopeId, int channel, uint16_t *data );
-void get_adc_sum(int telescopeId, int channel, uint32_t *data );
+int  file_open(const char* filename);
+int  fill_hsdata(int* event_id);
+int  get_adc_sample(int telescopeId, int channel, uint16_t *data );
+int  get_adc_sum(int telescopeId, int channel, uint32_t *data );
+int  get_data_for_calibration(int telescopeId,double* pedestal,double* calib);
+int  get_global_event_count(void);
+int  get_mirror_area(int telescopeId,double* mirror_area);
+int  get_num_channel(int telescopeId);
+int  get_num_pixels(int telescopeId);
+int  get_num_samples(int telescopeId);
+int  get_num_teldata(void);
+int  get_num_telescope(void);
+int  get_num_types(int telescopeId);
+int  get_pixel_position(int telescopeId, double* xpos, double* ypos );
+int  get_pixel_timing_threshold(int telescopeId, int* result);
+int  get_pixel_timing_timval(int telescopeId,float *data);
+int  get_pixel_timing_peak_global(int telescopeId, float* peak);
+int  get_run_number(void);
+int  get_telescope_with_data_list(int* list);
+int  get_telescope_index(int telescopeId);
+int  move_to_next_event(int *event_id);
 
 
 static AllHessData *hsdata = NULL;
 static IO_ITEM_HEADER item_header;
 static IO_BUFFER *iobuf = NULL;
 static int file_is_opened = 0;
+#define TEL_INDEX_NOT_VALID -2
 
 //-----------------------------------
 // Return array index for specific id
 //-----------------------------------
 
-int getTelscopeIndex(int telescopeId)
+int get_telescope_index(int telescopeId)
 {
 	int itel=0;
     for (itel=0; itel<hsdata->run_header.ntel; itel++)
     {
     	 if ((hsdata)->run_header.tel_id[itel] == telescopeId) return itel;
     }
-    return -1;
+    return TEL_INDEX_NOT_VALID;
 }
 
 //----------------------------------
@@ -47,10 +63,7 @@ int file_open(const char* filename)
 {
   if (filename)
   {
-    if (file_is_opened)
-    {
-       close_file(); 
-    }
+    if (file_is_opened) { close_file(); }
 
     /* Check assumed limits with the ones compiled into the library. */
     H_CHECK_MAX();
@@ -106,11 +119,11 @@ void close_file()
 {
 
   if ( iobuf->input_file != NULL && iobuf->input_file != stdin )
-
-	fileclose(iobuf->input_file);
-  iobuf->input_file = NULL;
-  reset_io_block(iobuf);
-
+  {
+    fileclose(iobuf->input_file);
+    iobuf->input_file = NULL;
+    reset_io_block(iobuf);
+  }
   if (iobuf->output_file != NULL) fileclose(iobuf->output_file);
 }
 
@@ -154,7 +167,7 @@ int get_num_teldata(void)
 //-------------------------------------------
 // Return list of IDs of telescopes with data
 //-------------------------------------------
-void get_teldata_list(int* list)
+int get_telescope_with_data_list(int* list)
 {
   if ( hsdata != NULL)
   {
@@ -164,7 +177,9 @@ void get_teldata_list(int* list)
     {
       *list++ =hsdata->event.teldata_list[loop];
     }
+    return 0;
   }
+  return -1;
 }
 
 //-------------------------------------------
@@ -188,24 +203,26 @@ int get_num_channel(int telescopeId)
 
   if ( hsdata != NULL)
   {
-	int itel = getTelscopeIndex(telescopeId);
+	int itel = get_telescope_index(telescopeId);
+	if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
     AdcData* raw = hsdata->event.teldata[itel].raw;
     if ( raw != NULL && raw->known  )
     {
       return raw->num_gains;
     }
   }
-  return 0;
+  return -1;
 }
 
 //-------------------------------------------
 // Return  PixelTiming.timval[H_MAX_PIX][H_MAX_PIX_TIMES]
 //-------------------------------------------
-void get_pixelTiming_timval(int telescopeId,float *data)
+int get_pixel_timing_timval(int telescopeId,float *data)
 {
   if ( hsdata != NULL)
   {
-    int itel = getTelscopeIndex(telescopeId);
+    int itel = get_telescope_index(telescopeId);
+	if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
     PixelTiming* pt = hsdata->event.teldata[itel].pixtm;
 	if ( pt != NULL )
 	{
@@ -220,16 +237,19 @@ void get_pixelTiming_timval(int telescopeId,float *data)
 	    }
 	  } // end for ipix
 	} // end if pt != NULL
+	return 0;
   } // end if hsdata
+  return -1;
 }
 //----------------------------------------------------------------
-void get_adc_sample(int telescopeId, int channel, uint16_t *data )
+int get_adc_sample(int telescopeId, int channel, uint16_t *data )
 //----------------------------------------------------------------
 // Return Pulses sampled
 {
   if ( hsdata != NULL)
   {
-	int itel = getTelscopeIndex(telescopeId);
+	int itel = get_telescope_index(telescopeId);
+	if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
  	AdcData* raw = hsdata->event.teldata[itel].raw;
     if ( raw != NULL && raw->known  ) // If triggered telescopes
     {
@@ -244,17 +264,20 @@ void get_adc_sample(int telescopeId, int channel, uint16_t *data )
         } // end if raw->significant[ipix]
       }  // end of  loop over pixels
     } // end if triggered telescopes
+    return 0;
   }
+  return -1;
 }
 
 //----------------------------------------------------------------
-void get_adc_sum(int telescopeId, int channel, uint32_t *data )
+int get_adc_sum(int telescopeId, int channel, uint32_t *data )
 //----------------------------------------------------------------
 {
   if ( hsdata != NULL)
   {
-	  int itel = getTelscopeIndex(telescopeId);
- 	  AdcData* raw = hsdata->event.teldata[itel].raw;
+	int itel = get_telescope_index(telescopeId);
+	if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+ 	AdcData* raw = hsdata->event.teldata[itel].raw;
     if ( raw != NULL && raw->known  ) // If triggered telescopes
     {
       int ipix =0.;
@@ -262,20 +285,23 @@ void get_adc_sum(int telescopeId, int channel, uint32_t *data )
       {
         *data++ = raw->adc_sum[channel][ipix];
       }  // end of  loop over pixels
+      return 0;
     } // end if triggered telescopes
   }
+  return -1;
 }
 //----------------------------------------------------------------
 // Return needed informations for calibration process
 //   double pedestal[H_MAX_GAINS][H_MAX_PIX];  ///< Average pedestal on ADC sums
 //   double calib[H_MAX_GAINS][H_MAX_PIX]; /**< ADC to laser/LED p.e. conversion,
 //
-void get_data_for_calibration(int telescopeId, double* pedestal, double* calib )
+int get_data_for_calibration(int telescopeId, double* pedestal, double* calib )
 //----------------------------------------------------------------
 {
   if ( hsdata != NULL)
   {
-	  int itel = getTelscopeIndex(telescopeId);
+	  int itel = get_telescope_index(telescopeId);
+	  if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
  	  TelMoniData monitor= hsdata->tel_moni[itel];
  	  LasCalData  calibration = hsdata->tel_lascal[itel];
       int ipix =0.;
@@ -287,21 +313,23 @@ void get_data_for_calibration(int telescopeId, double* pedestal, double* calib )
         {
         	*pedestal++=monitor.pedestal[igain][ipix];
         	*calib++=calibration.calib[igain][ipix];
-        	 //printf("pedestal[%d][%d][%f]\n",igain,ipix,monitor.pedestal[igain][ipix]);
-        	 //printf("calib[%d][%d][%f]\n",igain,ipix,calibration.calib[igain][ipix]);
         } // end loop gain
       }  // end of  loop over pixels
+      return 0;
   }
+  return -1;
 }
 //----------------------------------------------------------------
 //----------------------------------------------------------------
 // Return pixel position information
+// -1 if hsdata == NULL
 //
-void get_pixel_position(int telescopeId, double* xpos, double* ypos )
+int get_pixel_position(int telescopeId, double* xpos, double* ypos )
 {
   if ( hsdata != NULL)
   {
-	  int itel = getTelscopeIndex(telescopeId);
+	  int itel = get_telescope_index(telescopeId);
+	  if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
       int ipix =0.;
       int num_pixels = hsdata->camera_set[itel].num_pixels;
       for(ipix=0.;ipix<num_pixels;ipix++) //  loop over pixels
@@ -309,7 +337,9 @@ void get_pixel_position(int telescopeId, double* xpos, double* ypos )
     	  *xpos++=hsdata->camera_set[itel].xpix[ipix];
     	  *ypos++=hsdata->camera_set[itel].ypix[ipix];
       }
+      return 0;
   }
+  return -1;
 }
 //----------------------------------------------------------------
 // Return the number of pixels in the camera (as in configuration)
@@ -318,24 +348,26 @@ int get_num_pixels(int telescopeId)
 {
   if ( hsdata != NULL)
   {
-	int itel = getTelscopeIndex(telescopeId);
+	int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
 	return hsdata->camera_set[itel].num_pixels;
   }
-  return 0;
+  return -1;
 }
 
 //----------------------------------------------------------------
 // Return total area of individual mirrors corrected  for inclination [m^2].
 //----------------------------------------------------------------
-double get_mirror_area(int telescopeId)
+int get_mirror_area(int telescopeId,double* result)
 {
-  if ( hsdata != NULL)
+  if ( hsdata != NULL && result != NULL)
   {
-	int itel = getTelscopeIndex(telescopeId);
-	double ma = hsdata->camera_set[itel].mirror_area;
-	return ma;
+	int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+	*result = hsdata->camera_set[itel].mirror_area;
+	return 0;
   }
-  return 0.;
+  return -1.;
 }
 //-----------------------------------------------------
 // Return the number of samples (time slices) recorded
@@ -344,14 +376,15 @@ int get_num_samples(int telescopeId)
 {
   if ( hsdata != NULL)
   {
-	int itel = getTelscopeIndex(telescopeId);
+	int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
     AdcData* raw = hsdata->event.teldata[itel].raw;
     if ( raw != NULL )//&& raw->known  )
     {
       return raw->num_samples;
     }
   }
-  return 0;
+  return -1;
 }
 //-----------------------------------------------------
 // Return the number of different types of times can we store
@@ -360,48 +393,50 @@ int get_num_types(int telescopeId)
 {
   if ( hsdata != NULL)
   {
-	int itel = getTelscopeIndex(telescopeId);
+	int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
     PixelTiming* pt = hsdata->event.teldata[itel].pixtm;
     if ( pt != NULL )
     {
       return pt->num_types;
     }
   }
-  return 0;
+  return -1;
 }
 //---------------------------------------------
 // Return PixelTiming threshold:
 //  - Minimum base-to-peak raw amplitude difference applied in pixel selection
 //-----------------------------------------------------
-int get_pixel_timing_threshold(int telescopeId)
+int get_pixel_timing_threshold(int telescopeId,int *result)
 {
-  if ( hsdata != NULL)
+  if ( hsdata != NULL && result != NULL)
   {
-	int itel = getTelscopeIndex(telescopeId);
+	int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
     PixelTiming* pt = hsdata->event.teldata[itel].pixtm;
-    if ( pt != NULL )
-    {
-      return pt->threshold;
-    }
+    if ( pt != NULL ) *result  = pt->threshold;
+    return 0;
   }
-  return 0;
+  return -1;
 }
 //---------------------------------------------
 // Return PixelTiming peak_global:
 //   Camera-wide (mean) peak position [time slices]
 //-----------------------------------------------------
-float get_pixel_timing_peak_global(int telescopeId)
+int get_pixel_timing_peak_global(int telescopeId,float *result)
 {
-  if ( hsdata != NULL)
+  if ( hsdata != NULL && result != NULL)
   {
-	int itel = getTelscopeIndex(telescopeId);
+	int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
     PixelTiming* pt = hsdata->event.teldata[itel].pixtm;
     if ( pt != NULL )
     {
-      return pt->peak_global;
+      *result =  pt->peak_global;
     }
+    return 0;
   }
-  return 0.;
+  return -1;
 }
 //--------------------------------------------------
 // fill hsdata global variable by decoding data file
