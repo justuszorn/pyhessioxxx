@@ -408,7 +408,7 @@ def get_num_samples(telescope_id):
         
 
 
-def get_adc_sample(telescope_id,channel):
+def get_adc_sample(telescopeId,channel):
     """
     Returns
     ------- 
@@ -430,6 +430,7 @@ def get_adc_sample(telescope_id,channel):
     HessioChannelIndexError
     If channel does not exist for this telescope
     """
+    telescope_id = telescopeId
     if channel > get_num_channel(telescope_id)-1:
         raise(HessioChannelIndexError("telescope " + str(telescope_id) + " has not channel " + str(channel)))
 
@@ -460,7 +461,7 @@ def get_adc_sample(telescope_id,channel):
                                    " and channel " + str(channel)))
     
 
-def get_adc_sum(telescope_id,channel):
+def get_adc_sum(telescopeId,channel):
     """
     Returns 
     -------
@@ -484,6 +485,7 @@ def get_adc_sum(telescope_id,channel):
     
     """
     
+    telescope_id = telescopeId
     if channel > get_num_channel(telescope_id)-1:
         raise(HessioChannelIndexError("telescope " + str(telescope_id) + " has not channel " + str(channel)))
     
