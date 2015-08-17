@@ -24,7 +24,7 @@ int  get_num_pixels(int telescopeId);
 int  get_num_samples(int telescopeId);
 int  get_num_teldata(void);
 int  get_num_telescope(void);
-int  get_num_types(int telescopeId);
+int  get_pixel_timing_num_times_types(int telescopeId);
 int  get_pixel_position(int telescopeId, double* xpos, double* ypos );
 int  get_pixel_timing_threshold(int telescopeId, int* result);
 int  get_pixel_timing_timval(int telescopeId,float *data);
@@ -249,6 +249,7 @@ int get_adc_sample(int telescopeId, int channel, uint16_t *data )
   if ( hsdata != NULL)
   {
 	int itel = get_telescope_index(telescopeId);
+
 	if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
  	AdcData* raw = hsdata->event.teldata[itel].raw;
     if ( raw != NULL && raw->known  ) // If triggered telescopes
@@ -389,7 +390,7 @@ int get_num_samples(int telescopeId)
 //-----------------------------------------------------
 // Return the number of different types of times can we store
 //-----------------------------------------------------
-int get_num_types(int telescopeId)
+int get_pixel_timing_num_times_types(int telescopeId)
 {
   if ( hsdata != NULL)
   {
