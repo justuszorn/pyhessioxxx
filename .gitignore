@@ -5,6 +5,10 @@ hessioxxx/lib/
 hessioxxx/out/
 pyhessio.so
 hessioxxx/src/read_cta_4toy.c
-.gitignore
 *.fits
 *.pyc
+*.pdf
+*.xls
+.project
+.pydevproject
+TODO
