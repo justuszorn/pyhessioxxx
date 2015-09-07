@@ -48,21 +48,18 @@ def get_data_filename(filename, tel_type,hist_type):
     return filename+"_"+tel_type+'_'+hist_type +'.dat'
                 
                 
-def get_telescope_type(telescopeId):
-    ma = get_mirror_area(telescopeId)
+def get_telescope_type(telescope_id):
+    ma = get_mirror_area(telescope_id)
 
     if ma >(LSTMA-50) and ma <(LSTMA+50): return LST
     elif ma >(MSTMA-10) and ma <(MSTMA+10): return MST
     elif ma >(SSTMA-10) and ma <(SSTMA+10): return SST
     elif ma > (SCTMA-10) and ma < (SCTMA+10): return SCT
 
-
-
 def get_data(filename,wanted,xls=None,mode=NORMAL):
     
     # create a dictionary containig 16 lists (one by histogram and one by telescope type)
     lists=dict()
-    lists.append(2)
     for tel_type in TEL_TYPE:
         lists[tel_type] = dict()
         for hist_type in HIST_TYPE:
@@ -127,35 +124,28 @@ def get_data(filename,wanted,xls=None,mode=NORMAL):
             if ( glob_count in wanted_for_run):
                 couple_list = wanted_for_run[glob_count]
                 for item in couple_list:
-                    tel_id = item[0]
-                    pix_id = item[1]
-
-                    if tel_id in tel_list:
-                        channel = 0
-                        adc_sample = get_adc_sample(tel_id,channel)
-                        time_slice = 7
-                        trace = adc_sample[pix_id]
-                        sample_7 = trace[time_slice]
-                        adc_sum = get_adc_sum(tel_id,channel)
-                        time_val = get_pixel_timing_timval(tel_id)
-                            
-                        current=(run_id,glob_count,tel_id,pix_id,int(sample_7),
-                        int(adc_sum[pix_id]),
-                        float(time_val[pix_id][0]),
-                        float(time_val[pix_id][1]),
-                        float(time_val[pix_id][4]),
-                        float(time_val[pix_id][5]),
-                        float(time_val[pix_id][6]))
-                    else: # no trigger for this telescope during this event
-                        current=(run_id,glob_count,tel_id,pix_id,'NA',
-                        'NA',
-                        'NA',
-                        'NA',
-                        'NA',
-                        'NA',
-                        'NA')   
-                    if xls != None:
-                        xls.append(current)
+                        tel_id = item[0]
+                        pix_id = item[1]
+                        if tel_id in tel_list:
+                            channel = 0
+                            adc_sample = get_adc_sample(tel_id,channel)
+                            time_slice = 7
+                            trace = adc_sample[pix_id]
+                            sample_7 = trace[time_slice]
+                            adc_sum = get_adc_sum(tel_id,channel)
+                            time_val = get_pixel_timing_timval(tel_id)
+                                
+                            current=(run_id,glob_count,tel_id,pix_id,int(sample_7),
+                            int(adc_sum[pix_id]),
+                            float(time_val[pix_id][1]),
+                            float(time_val[pix_id][5]))
+                        else: # no trigger for this telescope during this event
+                            current=(run_id,glob_count,tel_id,pix_id,'NA',
+                            'NA',
+                            'NA',
+                            'NA')   
+                        if xls != None:
+                            xls.append(current)
                                     
         # if mode = WRITE, write data in a data file
         if  mode == WRITE: 
@@ -213,8 +203,6 @@ def get_data(filename,wanted,xls=None,mode=NORMAL):
         plt.ylabel("#events")
         plt.axis((0,26,0.1,10000))
         plt.savefig(pp, format='pdf') 
-        
-        plt.
     
     
         # SUM hist
@@ -232,7 +220,6 @@ def get_data(filename,wanted,xls=None,mode=NORMAL):
         plt.xlabel("#pixels (sum>1000 ADCcts")
         plt.ylabel("#events")
         plt.savefig(pp, format='pdf') 
-        
     
         # TIMVAL hist
         plt.clf()
@@ -274,7 +261,7 @@ def questionary(mode = NORMAL):
     wb = xlwt.Workbook()
     ws = wb.add_sheet("DL0_testbed")
     result = list()
-    result.append(('run_id','glob_cout','telescope','pixel','sample 7','sum','tmax[0]', 'tmax[1]',  'twidth 4', 'twidth 5 ', 'twidth 6 '))
+    result.append(('run_id','glob_cout','telescope','pixel','sample 7','sum','tmax', 'twidth'))
     
     wanted={}
     wanted[32364]={}
