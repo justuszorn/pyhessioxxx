@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
   # Declare and parse command line option
   parser = argparse.ArgumentParser(description='Tel_id, pixel id and number of event to compute.')
-  parser.add_argument('--f', dest='filename', required=True, help='simetelarray data file name')
+  parser.add_argument('-f', dest='filename', required=True, help='simetelarray data file name')
   parser.add_argument('--tel', type=int, required=True, help='telescope id')
   parser.add_argument('--pix', type=int, required=True, help='pixel id')
   parser.add_argument('--channel', type=int, required=False, help='channel 0/1 (gain)')
@@ -41,8 +41,8 @@ if __name__ == '__main__':
 
     nb_sample = get_num_samples(tel_id) 
     nb_pixel =  get_num_pixels(tel_id)
-    data_ch = get_adc_sample(channel = channel , telescopeId = tel_id)
-    data_ch_sum = get_adc_sum(channel = channel , telescopeId = tel_id)
+    data_ch = get_adc_sample(channel = channel , telescope_id = tel_id)
+    data_ch_sum = get_adc_sum(channel = channel , telescope_id = tel_id)
     
     try: 
       # get trace for pixel args.pix and channel channel
@@ -57,7 +57,7 @@ if __name__ == '__main__':
       
       sig = data_ch_sum[args.pix] - pedestal[channel][args.pix]
       npe = sig * calibration[channel][args.pix] * CALIB_SCALE;
-      npe_evts.append(sig)
+      npe_evts.append(npe)
       pos_x,pos_y = get_pixel_position(args.tel)
 
 
@@ -67,7 +67,6 @@ if __name__ == '__main__':
       break
 
     evt_num=evt_num+1
-  print("pixel pos x=", pos_x[args.pix],"pos y=",pos_y[args.pix])
 
   if(args.plot):
     import matplotlib.pyplot as plt
@@ -80,9 +79,9 @@ if __name__ == '__main__':
     # the histogram of the data
     #n, bins, patches = plt.hist(npe_evts, num_bins, normed=1, facecolor='green', alpha=0.5)
     # add a 'best fit' line
-    plt.plot(npe_evts)
-    plt.xlabel('Smarts')
-    plt.ylabel('Probability')
+    #plt.plot(intensity_evts)
+    phist = plt.hist(intensity_evts, bins=50)
+    plt.xlabel('ADC sum')
     title = 'ADC sum for telescope ' + str(args.tel)  + ', pixel '+  \
     str(args.pix)+ ', channel ' +   str(channel)
     plt.title(title)
