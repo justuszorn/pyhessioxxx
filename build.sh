@@ -11,5 +11,5 @@ cd ..
 
 echo "build pyhessio library"
 
-echo "gcc -o pyhessio.so -Ihessioxxx/include -I. `python3-config --cflags` `python-config --libs`  ${OPTIONS}  -shared pyhessio.c -L hessioxxx/lib -lhessio"
-gcc -o pyhessio.so -Ihessioxxx/include -I. `python3-config --cflags` `python-config --libs` ${OPTIONS}  -shared pyhessio.c -L hessioxxx/lib -lhessio
+echo "gcc -o pyhessio.so -Ihessioxxx/include -I. ${OPTIONS}  -shared pyhessio.c -L hessioxxx/lib -lhessio"
+gcc -o pyhessio.so -Ihessioxxx/include -I.  ${OPTIONS}  -shared pyhessio.c -L hessioxxx/lib -lhessio
