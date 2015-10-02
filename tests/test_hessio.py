@@ -213,8 +213,8 @@ def test_hessio():
     assert(nanoseconds == 0)
     
     seconds, nanoseconds = get_central_event_gps_time()
-    assert(seconds == 1319627141)
-    assert(nanoseconds == 1275579058)
+    assert(seconds == 1408549473)
+    assert(nanoseconds ==35597000) 
 
     num_tel_trig = get_num_tel_trig()
     assert(num_tel_trig == 2 )
