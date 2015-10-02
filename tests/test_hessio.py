@@ -175,6 +175,52 @@ def test_hessio():
         assert()
     except HessioTelescopeIndexError: pass
 
+
+       
+    """
+    xcode 1129.6055908203125
+    ycode 547.77001953125
+    shower energy 0.3820943236351013
+    shower azimuth 6.283185005187988
+    shower altitude 1.2217304706573486
+    teltrig_list [38 47]
+    get_adc_knows(38,0,1000) 1
+    get_ref_shape(38,0,2) 0.0269622802734375
+    get_ref_step(38) 0.3003003001213074
+    get_time_slice(38) 3.0030031204223633
+    tel_event gps seconds 0 nanoseconds 0
+    central_event_gps_time 1319627141 nanoseconds 1275579058
+    num tel trig 2
+    teltrig_list [38 47]
+
+    """
+        
+        
+    assert(float(get_mc_event_xcore()) == float(1129.6055908203125))
+    assert(float(get_mc_event_ycore()) == float(547.77001953125))
+    assert(float(get_mc_shower_energy()) == float(.3820943236351013))
+    assert(float(get_mc_shower_azimuth()) == float(6.283185005187988))
+    assert(float(get_mc_shower_altitude()) == float( 1.2217304706573486))
+    
+    assert(get_adc_known(38,0,1000)== 1 )
+
+    assert(float(get_ref_shape(38,0,2)) == float(.0269622802734375))
+    assert(float(get_ref_step(38)) == float(.3003003001213074))
+    assert(float(get_time_slice(38))== float(3.0030031204223633))
+
+    seconds, nanoseconds = get_tel_event_gps_time(38)
+    assert(seconds == 0)
+    assert(nanoseconds == 0)
+    
+    seconds, nanoseconds = get_central_event_gps_time()
+    assert(seconds == 1319627141)
+    assert(nanoseconds == 1275579058)
+
+    num_tel_trig = get_num_tel_trig()
+    assert(num_tel_trig == 2 )
+    
+    assert(np.array_equal(get_central_event_teltrg_list() ,[38, 47]) == True)
+
     close_file()
     
         

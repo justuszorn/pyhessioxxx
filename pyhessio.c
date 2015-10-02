@@ -33,6 +33,19 @@ int  get_run_number(void);
 int  get_telescope_with_data_list(int* list);
 int  get_telescope_index(int telescopeId);
 int  move_to_next_event(int *event_id);
+double get_mc_event_xcore();
+double get_mc_event_ycore();
+double get_mc_shower_energy();
+double get_mc_shower_azimuth();
+double get_mc_shower_altitude();
+uint8_t get_adc_known(int telescopeId,int channel , int pixel_id);
+double get_ref_shape(int telescopeId,int channel, int fshape );
+double get_ref_step(int telescopeId );
+double get_time_slice(int telescopeId);
+int get_tel_event_gps_time(int telescopeId, long* seconds, long* nanoseconds);
+int get_central_event_gps_time(long* seconds, long* nanoseconds);
+int get_central_event_teltrg_list(int* tel_list);
+int get_num_tel_trig();
 
 
 static AllHessData *hsdata = NULL;
@@ -165,7 +178,7 @@ int get_num_teldata(void)
   return -1;
 }
 //-------------------------------------------
-// Return list of IDs of telescopes with data
+// Set list of IDs of telescopes with data
 //-------------------------------------------
 int get_telescope_with_data_list(int* list)
 {
@@ -176,6 +189,37 @@ int get_telescope_with_data_list(int* list)
     for ( loop = 0; loop < num_teldata ; loop++)
     {
       *list++ =hsdata->event.teldata_list[loop];
+    }
+    return 0;
+  }
+  return -1;
+}
+
+
+//-------------------------------------------
+// Get number of triggered telescope.
+//-------------------------------------------
+int get_num_tel_trig()
+{
+  if ( hsdata != NULL)
+  {
+      return hsdata->event.central.num_teltrg;
+  }
+  else return -1;
+}
+
+//-------------------------------------------
+// Set List of IDs of triggered telescopes.
+//-------------------------------------------
+int get_central_event_teltrg_list(int* tel_list)
+{
+  if ( hsdata != NULL)
+  {
+    int num_teltrig = get_num_tel_trig();     
+    int loop = 0;
+    for ( loop = 0; loop < num_teltrig ; loop++)
+    {
+      *tel_list++ =hsdata->event.central.teltrg_list[loop];
     }
     return 0;
   }
@@ -194,9 +238,23 @@ int get_global_event_count(void)
   return -1;
 }
 
+//-------------------------------------------
+// Set seconds and nanosecond parameter with 
+// the central trigger time
+//-------------------------------------------
+int get_central_event_gps_time(long* seconds, long* nanoseconds)
+{
+  if ( hsdata != NULL)
+  {
+        if (seconds != NULL ) *seconds = hsdata->event.central.gps_time.seconds;
+        if (nanoseconds != NULL ) *nanoseconds = hsdata->event.central.gps_time.nanoseconds;
+        return 0;
+  }
+  return -1;
+}
 
 //----------------------------------------------------------------
-// Return he number of different gains per pixel for a telscope id
+// Return the number of different gains per pixel for a telscope id
 //----------------------------------------------------------------
 int get_num_channel(int telescopeId)
 {
@@ -214,6 +272,130 @@ int get_num_channel(int telescopeId)
   return -1;
 }
 
+//----------------------------------------------------------------
+// Return Width of readout time slice (i.e. one sample) [ns].
+// If telescopeId is not valid return 0.
+//----------------------------------------------------------------
+double get_time_slice(int telescopeId)
+{
+  if ( hsdata != NULL)
+  {
+    int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+    PixelSetting setting = hsdata->pixel_set[itel];
+    return setting.time_slice;
+  }
+  return -0.;
+}
+
+//----------------------------------------------------------------
+// Return  Reference pulse shape(s)
+// refshape[H_MAX_GAINS][H_MAX_FSHAPE];
+// If telescopeId, channel or fshape are not valid return 0.
+//----------------------------------------------------------------
+double get_ref_shape(int telescopeId,int channel, int fshape )
+{
+  if ( hsdata != NULL && channel < H_MAX_GAINS && fshape < H_MAX_FSHAPE) 
+  {
+    int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+    PixelSetting setting = hsdata->pixel_set[itel];
+    return setting.refshape[channel][fshape];
+  }
+  return -0.;
+}
+
+//----------------------------------------------------------------
+// Return  Time step between refshape entries [ns]
+//----------------------------------------------------------------
+double get_ref_step(int telescopeId )
+{
+  if ( hsdata != NULL ) 
+  {
+    int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+    PixelSetting setting = hsdata->pixel_set[itel];
+    return setting.ref_step;
+  }
+  return -0.;
+}
+//----------------------------------------------------------------
+// Return individual channel recorded information ? 
+// Bit 0: sum, 1: samples, 2: ADC was in saturation.
+//----------------------------------------------------------------
+uint8_t get_adc_known(int telescopeId,int channel , int pixel_id)
+{
+
+  if ( hsdata != NULL && channel < H_MAX_GAINS && pixel_id < H_MAX_PIX)
+  {
+    int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+    AdcData* raw = hsdata->event.teldata[itel].raw;
+    if ( raw != NULL && raw->known  )
+    {
+      return raw->adc_known[channel][pixel_id];
+    }
+  }
+  return -1;
+}
+
+//----------------------------------------------------------------
+// Return shower altitude [rad]
+//----------------------------------------------------------------
+double get_mc_shower_altitude()
+{
+  if ( hsdata != NULL)
+  {
+      return hsdata->mc_shower.altitude;
+  }
+  return -0.;
+}
+//----------------------------------------------------------------
+// Return shower azimuth (N->E) [rad]
+//----------------------------------------------------------------
+double get_mc_shower_azimuth()
+{
+  if ( hsdata != NULL)
+  {
+      return hsdata->mc_shower.azimuth;
+  }
+  return -0.;
+}
+//----------------------------------------------------------------
+// Return shower primary energy [TeV]
+//----------------------------------------------------------------
+double get_mc_shower_energy()
+{
+  if ( hsdata != NULL)
+  {
+      return hsdata->mc_shower.energy;
+  }
+  return -0.;
+}
+//----------------------------------------------------------------
+// Return  x core position w.r.t. array reference point [m],
+//   x -> N
+//----------------------------------------------------------------
+double get_mc_event_xcore()
+{
+  if ( hsdata != NULL)
+  {
+      return hsdata->mc_event.xcore;
+  }
+  return -0.;
+}
+//----------------------------------------------------------------
+// Return  y core position w.r.t. array reference point [m],
+//   y -> W
+//----------------------------------------------------------------
+double get_mc_event_ycore()
+{
+  if ( hsdata != NULL)
+  {
+      return hsdata->mc_event.ycore;
+  }
+  return -0.;
+}
 //-------------------------------------------
 // Return  PixelTiming.timval[H_MAX_PIX][H_MAX_PIX_TIMES]
 //-------------------------------------------
@@ -401,6 +583,24 @@ int get_pixel_timing_num_times_types(int telescopeId)
     {
       return pt->num_types;
     }
+  }
+  return -1;
+}
+
+//-----------------------------------------------------
+// Set the local telescope trigger time second and nanoseconds
+// to function paramameters
+// returns 0 if set, otherwise returns -1
+//-----------------------------------------------------
+int get_tel_event_gps_time(int telescopeId, long* seconds, long* nanoseconds)
+{
+  if ( hsdata != NULL  && seconds != NULL && nanoseconds != NULL)
+  {
+    int itel = get_telescope_index(telescopeId);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+    *seconds =  hsdata->event.teldata[itel].gps_time.seconds;
+    *nanoseconds =  hsdata->event.teldata[itel].gps_time.nanoseconds;
+    return 0;
   }
   return -1;
 }
