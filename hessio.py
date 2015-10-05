@@ -15,6 +15,7 @@ __all__ = ['move_to_next_event','file_open','close_file',
            'get_mc_event_xcore', 'get_mc_event_ycore' ,'get_mc_shower_energy', 
            'get_mc_shower_azimuth' ,'get_mc_shower_altitude','get_adc_known',
            'get_ref_shape' ,'get_ref_step','get_time_slice',
+           'get_ref_shapes',  'get_nrefshape' ,'get_lrefshape',
            'get_tel_event_gps_time' ,'get_tel_event_gps_time','get_central_event_teltrg_list',
            'get_num_tel_trig' ,'get_central_event_gps_time',
            'HessioTelescopeIndexError','HessioGeneralError']
@@ -76,12 +77,16 @@ lib.get_time_slice.restype = ctypes.c_double
 lib.get_time_slice.argtypes  =  [ctypes.c_int]
 lib.get_ref_step.restype = ctypes.c_double  
 lib.get_ref_step.argtypes  =  [ctypes.c_int]
+lib.get_ref_shapes.restypes = ctypes.c_int
+lib.get_ref_shapes.argtypes =[ctypes.c_int,ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
+lib.get_nrefshape.restypes = ctypes.c_int
+lib.get_nrefshape.argtypes = [ctypes.c_int]
+lib.get_lrefshape.restypes = ctypes.c_int
+lib.get_lrefshape.argtypes = [ctypes.c_int]
 lib.get_tel_event_gps_time.restype = ctypes.c_int 
 lib.get_tel_event_gps_time.argtypes = [ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"), np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS")]
 lib.get_central_event_gps_time.restype = ctypes.c_int
 lib.get_central_event_gps_time.argtypes =  [np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"), np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS")]
-
-
 lib.get_central_event_teltrg_list.restype = ctypes.c_int 
 lib.get_central_event_teltrg_list.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int, flags="C_CONTIGUOUS")]
 
@@ -720,6 +725,51 @@ def get_ref_shape(telescope_id, channel, fshape):
     fshape, int
     """
     return lib.get_ref_shape(telescope_id, channel, fshape)
+
+
+def get_ref_shapes(telescope_id,channel):
+    """
+    Returns:
+    --------
+    Array of Reference pulse shape(s).
+    0 if channel is not valid
+    TEL_INDEX_NOT_VALID if telescope index is not valid
+    Parameters
+    ----------
+    telescope_id: int
+    channel: int, HI_GAIN, LOW_GAIN
+    """
+    num_shapes= get_lrefshape(telescope_id)
+    if  num_shapes>= 0:
+        array = np.zeros(num_shapes,dtype=np.double)
+        lib.get_ref_shapes(telescope_id, channel, array)
+        return array
+    else:
+        raise(HessioGeneralError("PixelTimming pulse shape(s) not available"))
+
+def get_nrefshape(telescope_id):
+    """
+    Returns:
+    --------
+    Number of following reference pulse shapes (num_gains or 0)
+    TEL_INDEX_NOT_VALID if telescope index is not valid
+    Parameters
+    ----------
+    telescope_id: int
+    """
+    return lib.get_nrefshape(telescope_id)
+
+def get_lrefshape(telescope_id):
+    """
+    Returns:
+    Length of following reference pulse shape(s).
+    TEL_INDEX_NOT_VALID if telescope index is not valid
+    --------
+    Parameters
+    ----------
+    telescope_id: int
+    """
+    return lib.get_lrefshape(telescope_id)
 
 def get_ref_step(telescope_id):
     """
