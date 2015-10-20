@@ -16,7 +16,8 @@ int file_open(const char* filename);
 int fill_hsdata(int* event_id);
 int get_adc_sample(int telescope_id, int channel, uint16_t *data );
 int get_adc_sum(int telescope_id, int channel, uint32_t *data );
-int get_data_for_calibration(int telescope_id,double* pedestal,double* calib);
+int get_pedestal(int telescope_id, double* pedestal );
+int get_calibration(int telescope_id, double* calib );
 int get_global_event_count(void);
 int get_mirror_area(int telescope_id,double* mirror_area);
 int get_num_channel(int telescope_id);
@@ -545,30 +546,56 @@ int get_adc_sum(int telescope_id, int channel, uint32_t *data )
   return -1;
 }
 //----------------------------------------------------------------
-// Returns needed informations for calibration process
-//  double pedestal[H_MAX_GAINS][H_MAX_PIX];  ///< Average pedestal on ADC sums
+// Fill calibration data
 //  double calib[H_MAX_GAINS][H_MAX_PIX]; /**< ADC to laser/LED p.e. conversion,
-// Returns TEL_INDEX_NOT_VALID if telescope index is not valid
+// Returns  0 for success,  TEL_INDEX_NOT_VALID if telescope index is not valid
 //
-int get_data_for_calibration(int telescope_id, double* pedestal, double* calib )
+int get_calibration(int telescope_id, double* calib )
 //----------------------------------------------------------------
 {
   if ( hsdata != NULL)
   {
-    int itel = get_telescope_index(telescope_id);
+    unsigned int itel = get_telescope_index(telescope_id);
     if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
-     TelMoniData monitor= hsdata->tel_moni[itel];
      LasCalData  calibration = hsdata->tel_lascal[itel];
-     int ipix =0.;
-     int num_pixels = hsdata->camera_set[itel].num_pixels;
+     unsigned int num_gain = calibration.num_gains; 
+     unsigned int num_pixels = hsdata->camera_set[itel].num_pixels;
+     unsigned int ipix =0.;
      for(ipix=0.;ipix<num_pixels;ipix++) // loop over pixels
      {
-     int igain=0, num_gain=2; // LOW and HI Gain
-     for(igain=0;igain<num_gain;igain++)
+       int igain=0;
+       for(igain=0;igain<num_gain;igain++)
+       {
+         *calib++=calibration.calib[igain][ipix];
+       } // end loop gain
+     }  // end of   loop over pixels
+     return 0;
+  }
+  return -1;
+}
+//----------------------------------------------------------------
+// Fill pedestal data
+//  double pedestal[H_MAX_GAINS][H_MAX_PIX];  ///< Average pedestal on ADC sums
+// Returns 0 for success TEL_INDEX_NOT_VALID if telescope index is not valid
+//
+int get_pedestal(int telescope_id, double* pedestal )
+//----------------------------------------------------------------
+{
+  if ( hsdata != NULL)
+  {
+    unsigned int itel = get_telescope_index(telescope_id);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+     TelMoniData monitor= hsdata->tel_moni[itel];
+     unsigned int num_gain = monitor.num_gains; 
+     unsigned int num_pixels = hsdata->camera_set[itel].num_pixels;
+     unsigned int ipix =0.;
+     for(ipix=0.;ipix<num_pixels;ipix++) // loop over pixels
      {
-       *pedestal++=monitor.pedestal[igain][ipix];
-       *calib++=calibration.calib[igain][ipix];
-     } // end loop gain
+       unsigned int igain=0;
+       for(igain=0;igain<num_gain;igain++)
+       {
+         *pedestal++=monitor.pedestal[igain][ipix];
+       } // end loop gain
      }  // end of   loop over pixels
      return 0;
   }

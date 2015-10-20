@@ -116,15 +116,23 @@ def test_hessio():
     except HessioTelescopeIndexError:pass
         
         
-    #get_data_for_calibration 
-    pedestal, calibration = get_data_for_calibration(tel_id)
-    assert pedestal[0][0] == 457.36550903320312
-    assert calibration[0][2] ==  0.092817604541778564
+    #get_calibration 
+    calibration = get_calibration(tel_id)
+    assert calibration[0][2] ==  0.086124487221240997
     try :
-        get_data_for_calibration(0)
+        get_calibration(0)
         assert()
     except HessioTelescopeIndexError: pass
         
+    #get_pedestal 
+    pedestal = get_pedestal(tel_id)
+    assert pedestal[0][0] == 457.36550903320312
+    try :
+        get_pedestal(0)
+        assert()
+    except HessioTelescopeIndexError: pass
+
+
     #get_pixel_position
     pos_x,pos_y = get_pixel_position(tel_id)
     assert pos_x[2] == -0.085799999535083771
