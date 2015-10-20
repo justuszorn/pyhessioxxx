@@ -34,8 +34,8 @@
  *  @author  Konrad Bernl&ouml;hr
  *  @date July 2000 (initial version)
  *
- *  @date    @verbatim CVS $Date: 2014/09/02 15:54:33 $ @endverbatim
- *  @version @verbatim CVS $Revision: 1.85 $ @endverbatim
+ *  @date    @verbatim CVS $Date: 2015/03/13 18:53:34 $ @endverbatim
+ *  @version @verbatim CVS $Revision: 1.87 $ @endverbatim
  */
 
 /* ================================================================== */
@@ -713,9 +713,10 @@ int write_hess_camsettings (IO_BUFFER *iobuf, CameraSettings *cs)
       return -1;
 
    item_header.type = IO_TYPE_HESS_CAMSETTINGS;  /* Data type */
-   item_header.version = 2;             /* Version 2 */
-   if ( cs->cam_rot != 0. )
-      item_header.version = 3;
+   // item_header.version = 2;             /* Version 2 */
+   // if ( cs->cam_rot != 0. )
+   //    item_header.version = 3;
+   item_header.version = 4;  /* Need version 4 for pixel inclination */
    item_header.ident = cs->tel_id;
    put_item_begin(iobuf,&item_header);
 
@@ -723,8 +724,40 @@ int write_hess_camsettings (IO_BUFFER *iobuf, CameraSettings *cs)
    put_real(cs->flen,iobuf);
    put_vector_of_real(cs->xpix,cs->num_pixels,iobuf);
    put_vector_of_real(cs->ypix,cs->num_pixels,iobuf);
-   put_vector_of_real(cs->area,cs->num_pixels,iobuf);
-   put_vector_of_real(cs->size,cs->num_pixels,iobuf);
+   /* Data only written since version 4 or format changed with version 4: */
+   if ( item_header.version >= 4 )
+   {
+      put_scount(cs->curved_surface,iobuf);
+      put_scount(cs->pixels_parallel,iobuf);
+      if ( cs->curved_surface )
+      {
+         put_vector_of_real(cs->zpix,cs->num_pixels,iobuf);
+      }
+      if ( ! cs->pixels_parallel )
+      {
+         put_vector_of_real(cs->nxpix,cs->num_pixels,iobuf);
+         put_vector_of_real(cs->nypix,cs->num_pixels,iobuf);
+      }
+      put_scount(cs->common_pixel_shape,iobuf);
+      if ( ! cs->common_pixel_shape )
+      {
+         put_vector_of_int_scount(cs->pixel_shape,cs->num_pixels,iobuf);
+         put_vector_of_real(cs->area,cs->num_pixels,iobuf);
+         put_vector_of_real(cs->size,cs->num_pixels,iobuf);
+      }
+      else /* Since all have the same shape and size, we write just one value each */
+      {
+         put_scount(cs->pixel_shape[0],iobuf);
+         put_real(cs->area[0],iobuf);
+         put_real(cs->size[0],iobuf);
+      }
+   }
+   else
+   {
+      /* Used in version 1, 2, 3: */
+      put_vector_of_real(cs->area,cs->num_pixels,iobuf); /* also in version 0 */
+      put_vector_of_real(cs->size,cs->num_pixels,iobuf);
+   }
 
    /* Data only written since version 2: */
    put_int32(cs->num_mirrors,iobuf);
@@ -755,7 +788,7 @@ int read_hess_camsettings (IO_BUFFER *iobuf, CameraSettings *cs)
    item_header.type = IO_TYPE_HESS_CAMSETTINGS;  /* Data type */
    if ( (rc = get_item_begin(iobuf,&item_header)) < 0 )
       return rc;
-   if ( item_header.version > 3 )
+   if ( item_header.version > 4 )
    {
       fprintf(stderr,"Unsupported camera definition version: %d.\n",
          item_header.version);
@@ -783,12 +816,74 @@ int read_hess_camsettings (IO_BUFFER *iobuf, CameraSettings *cs)
    cs->flen = get_real(iobuf);
    get_vector_of_real(cs->xpix,cs->num_pixels,iobuf);
    get_vector_of_real(cs->ypix,cs->num_pixels,iobuf);
-   get_vector_of_real(cs->area,cs->num_pixels,iobuf);
-   if ( item_header.version >= 1 )
-      get_vector_of_real(cs->size,cs->num_pixels,iobuf);
+   if ( item_header.version >= 4 )
+   {
+      cs->curved_surface = get_scount(iobuf);
+      cs->pixels_parallel = get_scount(iobuf);
+      if ( cs->curved_surface )
+      {
+         get_vector_of_real(cs->zpix,cs->num_pixels,iobuf);
+      }
+      else
+      {
+         for ( i=0; i<cs->num_pixels; i++ )
+         {
+            cs->zpix[i] = 0.;  /* Assume a flat camera */
+         }
+      }
+      if ( ! cs->pixels_parallel )
+      {
+         get_vector_of_real(cs->nxpix,cs->num_pixels,iobuf);
+         get_vector_of_real(cs->nypix,cs->num_pixels,iobuf);
+      }
+      else
+      {
+         for ( i=0; i<cs->num_pixels; i++ )
+         {
+            cs->nxpix[i] = cs->nypix[i] = 0.;  /* Assume looking along optical axis */
+         }
+      }
+      cs->common_pixel_shape = get_scount(iobuf);
+      if ( ! cs->common_pixel_shape )
+      {
+         /* Pixel geometric properties reported individually */
+         get_vector_of_int_scount(cs->pixel_shape,cs->num_pixels,iobuf);
+         get_vector_of_real(cs->area,cs->num_pixels,iobuf);
+         get_vector_of_real(cs->size,cs->num_pixels,iobuf);
+      }
+      else
+      {
+         /* All pixels of same shape and size */
+         double area, size;
+         int pixel_shape = get_scount(iobuf);
+         area = get_real(iobuf);
+         size = get_real(iobuf);
+         for ( i=0; i<cs->num_pixels; i++ )
+         {
+            cs->pixel_shape[i] = pixel_shape;
+            cs->area[i] = area;
+            cs->size[i] = size;
+         }
+      }
+   }
    else
-      for (i=0; i<cs->num_pixels; i++)
-      	 cs->size[i] = 0.;
+   {
+      cs->curved_surface = 0;
+      cs->pixels_parallel = 1;
+      cs->common_pixel_shape = 0;
+      for ( i=0; i<cs->num_pixels; i++ )
+      {
+         cs->zpix[i] = 0.;  /* Assume a flat camera, */
+         cs->nxpix[i] = cs->nypix[i] = 0.;  /* assume looking along optical axis, */
+         cs->pixel_shape[i] = -1; /* unknown shape (can be derived from pixel positions) */
+      }
+      get_vector_of_real(cs->area,cs->num_pixels,iobuf);
+      if ( item_header.version >= 1 )
+         get_vector_of_real(cs->size,cs->num_pixels,iobuf);
+      else
+         for (i=0; i<cs->num_pixels; i++)
+      	    cs->size[i] = 0.;
+   }
 
    if ( item_header.version >= 2 )
    {
@@ -821,8 +916,8 @@ int read_hess_camsettings (IO_BUFFER *iobuf, CameraSettings *cs)
 int print_hess_camsettings (IO_BUFFER *iobuf)
 {
    IO_ITEM_HEADER item_header;
-   int rc, i, num_pixels;
-   double flen, xpix, ypix, area, size;
+   int rc, i, num_pixels, pixel_shape;
+   double flen, xpix, ypix, zpix, czpix, area, size;
    
    if ( iobuf == (IO_BUFFER *) NULL )
       return -1;
@@ -830,7 +925,7 @@ int print_hess_camsettings (IO_BUFFER *iobuf)
    item_header.type = IO_TYPE_HESS_CAMSETTINGS;  /* Data type */
    if ( (rc = get_item_begin(iobuf,&item_header)) < 0 )
       return rc;
-   if ( item_header.version > 3 )
+   if ( item_header.version > 4 )
    {
       fprintf(stderr,"Unsupported camera definition version: %d.\n",
          item_header.version);
@@ -863,28 +958,129 @@ int print_hess_camsettings (IO_BUFFER *iobuf)
          printf(" ...");
    }
    printf(" m\n");
-   printf("   area = ");
-   for ( i=0; i<num_pixels; i++ )
+   if ( item_header.version >= 4 )
    {
-      area = get_real(iobuf);
-      if ( i<10 )
-         printf(" %f,", area);
-      else if ( i==10 )
-         printf(" ...");
+      int curved_surface, pixels_parallel, common_pixel_shape;
+      curved_surface = get_scount(iobuf);
+      pixels_parallel = get_scount(iobuf);
+      if ( curved_surface )
+      {
+         printf("   Camera has a curved surface.\n");
+         printf("   zpix = ");
+         for ( i=0; i<num_pixels; i++ )
+         {
+            zpix = get_real(iobuf);
+            if ( i<10 )
+               printf(" %f,", zpix);
+            else if ( i==10 )
+               printf(" ...");
+         }
+         printf(" m\n");
+      }
+      else
+      {
+         printf("   Camera has a flat surface.\n");
+      }
+      if ( pixels_parallel )
+      {
+         printf("   Pixels are parallel to optical axis.\n");
+      }
+      else
+      {
+         printf("   Pixels are inclined w.r.t. optical axis.\n");
+         printf("   nxpix = ");
+         for ( i=0; i<num_pixels; i++ )
+         {
+            czpix = get_real(iobuf);
+            if ( i<10 )
+               printf(" %f,", czpix);
+            else if ( i==10 )
+               printf(" ...");
+         }
+         printf("\n");
+         printf("   nypix = ");
+         for ( i=0; i<num_pixels; i++ )
+         {
+            czpix = get_real(iobuf);
+            if ( i<10 )
+               printf(" %f,", czpix);
+            else if ( i==10 )
+               printf(" ...");
+         }
+         printf("\n");
+      }
+      common_pixel_shape = get_scount(iobuf);
+      if ( ! common_pixel_shape )
+      {
+         printf("   Individual pixel shapes and/or sizes:\n");
+         printf("   pixel_shape = ");
+         for ( i=0; i<num_pixels; i++ )
+         {
+            pixel_shape = get_scount(iobuf);
+            if ( i<10 )
+               printf(" %d,", pixel_shape);
+            else if ( i==10 )
+               printf(" ...");
+         }
+         printf("\n");
+         printf("   pixel area = ");
+         for ( i=0; i<num_pixels; i++ )
+         {
+            area = get_real(iobuf);
+            if ( i<10 )
+               printf(" %f,", area);
+            else if ( i==10 )
+               printf(" ...");
+         }
+         printf(" m^2\n");
+         printf("   pixel size = ");
+         for ( i=0; i<num_pixels; i++ )
+         {
+            size = get_real(iobuf);
+            if ( i<10 )
+               printf(" %f,", size);
+            else if ( i==10 )
+               printf(" ...");
+         }
+         printf(" m\n");
+      }
+      else
+      {
+         printf("   Common pixel shapes and/or sizes:\n");
+         pixel_shape = get_scount(iobuf);
+         area = get_real(iobuf);
+         size = get_real(iobuf);
+         printf("   pixel_shape = %d\n", pixel_shape);
+         printf("   pixel area = %f m^2\n", area);
+         printf("   pixel size = %f m\n", size);
+      }
    }
-   printf(" m^2\n");
-   if ( item_header.version >= 1 )
+   else
    {
-      printf("   size = ");
+      printf("   Pixels assumed parallel to optical axis.\n");
+      printf("   pixel area = ");
       for ( i=0; i<num_pixels; i++ )
       {
-         size = get_real(iobuf);
+         area = get_real(iobuf);
          if ( i<10 )
-            printf(" %f,", size);
+            printf(" %f,", area);
          else if ( i==10 )
             printf(" ...");
       }
-      printf(" m\n");
+      printf(" m^2\n");
+      if ( item_header.version >= 1 )
+      {
+         printf("   pixel size = ");
+         for ( i=0; i<num_pixels; i++ )
+         {
+            size = get_real(iobuf);
+            if ( i<10 )
+               printf(" %f,", size);
+            else if ( i==10 )
+               printf(" ...");
+         }
+         printf(" m\n");
+      }
    }
 
    if ( item_header.version >= 2 )

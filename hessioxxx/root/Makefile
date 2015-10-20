@@ -1,7 +1,7 @@
 # Makefile for hessio hdata2root converter.
 # Author: Konrad Bernloehr
-# $Revision: 1.1 $
-# $Date: 2013/02/01 16:03:45 $
+# $Revision: 1.2 $
+# $Date: 2015/05/27 11:38:12 $
 
 # This Makefile requires GNU make.
 
@@ -21,7 +21,7 @@ override CFLAGS := $(CFLAGS) $(INCLUDES) $(shell root-config --cflags)
 override CXXFLAGS := $(CXXFLAGS) $(INCLUDES) $(shell root-config --cflags)
 # ROOT itself badly fails to obey const-ness. Remove -Wcast-qual from CXXFLAGS.
 override CXXFLAGS := $(CXXFLAGS:-Wcast-qual=)
-override LDFLAGS := -Wl,-rpath -Wl,$(LIBDIR)
+override LDFLAGS := $(LDEXTRA) -Wl,-rpath -Wl,$(LIBDIR)
 
 ROOT_LIBDIR := $(shell root-config --libdir 2>/dev/null)
 LIBS += -lm -lc

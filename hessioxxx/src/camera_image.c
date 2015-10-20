@@ -30,8 +30,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *  included in the data.
  *
  *  @author  Konrad Bernloehr
- *  @date    @verbatim CVS $Date: 2014/09/02 15:54:33 $ @endverbatim
- *  @version @verbatim CVS $Revision: 1.30 $ @endverbatim
+ *  @date    @verbatim CVS $Date: 2015/01/20 14:50:36 $ @endverbatim
+ *  @version @verbatim CVS $Revision: 1.31 $ @endverbatim
  */
 
 #include "initial.h"      /* This file includes others as required. */
@@ -92,6 +92,7 @@ static char ps_head2[] =
 "/txt5 {/Helvetica-Bold-iso ff 480.00 scf sf} bind def\n"
 "/txt4 {/Helvetica-Bold-iso ff 400.00 scf sf} bind def\n"
 "/txt2 {/Helvetica-iso ff 250.00 scf sf} bind def\n"
+"/txt1 {/Helvetica-iso ff 100.00 scf sf} bind def\n"
 "/mtxt {m gs 1 -1 sc} bind def\n"
 "/tblack {dup sw pop 2 div neg 0 rm black sh gr} bind def\n"
 "/tblue {dup sw pop 2 div neg 0 rm blue sh gr} bind def\n"
@@ -259,12 +260,12 @@ static void print_pix_col(double n_o_r, FILE *psfile, double gamma_coeff)
 static int ps_num_page = 0;
 
 /** 
- *  @short Write PostScript of camera sum image to a dedicated file.
+ *  @short Write PostScript of camera sum image or sample image to a dedicated file.
  *
- *  Also controlled via environment variables GAMMA_COEFF, 
- *  GRAY_IMAGE, IMAGE_RANGE.
+ *  Also controlled via environment variables 
+ *  GAMMA_COEFF, GRAY_IMAGE, IMAGE_RANGE, IMAGE_OFFSET, PLOT_WITH_PIXEL_ID.
  *
- *  @param image_fname The name of the postscript image file.
+ *  @param image_fname The name of the postscript image file. Opened for appending new images.
  *  @param hsdata      Pointer to the structure containing all data.
  *  @param itel        The telescope index number.
  *  @param type        Event type (<0: MC events, >=0: various type of calib data).
@@ -303,6 +304,7 @@ void hesscam_ps_plot(const char *image_fname, AllHessData *hsdata, int itel,
    double img_gamma = (getenv("GRAY_IMAGE")==NULL)?gamma_coeff:-0.85*gamma_coeff;
    double img_range = (getenv("IMAGE_RANGE")==NULL)?20.:atof(getenv("IMAGE_RANGE"));
    double img_off = (getenv("IMAGE_OFFSET")==NULL)?4.:atof(getenv("IMAGE_OFFSET"));
+   int with_id = (getenv("PLOT_WITH_PIXEL_ID")==NULL)?0:atoi(getenv("PLOT_WITH_PIXEL_ID"));
    double range;
    double hex_dx[6] = { 1.155, 0.577, -0.577, -1.155, -0.577, 0.577 };
    double hex_dy[6] = { 0.0, 1.0, 1.0, 0., -1.0, -1.0 };
@@ -567,6 +569,13 @@ void hesscam_ps_plot(const char *image_fname, AllHessData *hsdata, int itel,
       	    fprintf(psfile,"n %ld %ld m gcr\n", Nint(xc), Nint(yc));
          if ( is_in_image[i] )
       	    fprintf(psfile,"n %ld %ld m yxcr\n", Nint(xc), Nint(yc));
+
+         if ( with_id )
+         {
+            /* Print the pixel ID on top of each pixel in very small font size. */
+            fprintf(psfile,"txt1 %ld %ld mtxt (%d) tblack\n", Nint(xc), Nint(yc), i);
+         }
+
        }
        /* End of camera rotation */
        fprintf(psfile,"gr\n");

@@ -1,6 +1,6 @@
 /* ============================================================================
 
-   Copyright (C) 2000, 2003, 2008, 2009, 2010, 2011  Konrad Bernloehr
+   Copyright (C) 2000, 2003, 2008, 2009, 2010, 2011, 2014  Konrad Bernloehr
 
    This file is part of the eventio/hessio library.
 
@@ -30,8 +30,8 @@
  *  @author  Konrad Bernl&ouml;hr 
  *  @date initial version: July 2000
  *
- *  @date    @verbatim CVS $Date: 2014/09/02 15:54:33 $ @endverbatim
- *  @version @verbatim CVS $Revision: 1.83 $ @endverbatim
+ *  @date    @verbatim CVS $Date: 2015/07/13 14:17:38 $ @endverbatim
+ *  @version @verbatim CVS $Revision: 1.92 $ @endverbatim
  */
 
 /* ================================================================ */
@@ -68,11 +68,25 @@ extern "C" {
 #endif
 #endif
 
+#ifdef CTA_MINI2
+# define CTA_PROD2 2
+# define CTA_MINI 2
+#endif
+#ifdef CTA_MINI3
+# define CTA_PROD3 2
+# define CTA_MINI 3
+#endif
+#ifdef CTA_PROD3_DEMO
+# define CTA_PROD3_SC 1
+#endif
 #ifdef CTA_ULTRA3
 # define CTA_ULTRA 3
 #endif
 #ifdef CTA_ULTRA5
 # define CTA_ULTRA 5
+#endif
+#ifdef CTA_PROD3_MERGE
+# define CTA_MAX 1
 #endif
 
 /* You should, apart from an optional CTA definition, not have defined more than one of the following: */
@@ -84,6 +98,8 @@ extern "C" {
     defined(CTA_PROD1) || \
     defined(CTA_PROD2) || \
     defined(CTA_PROD2_SC) || \
+    defined(CTA_PROD3) || \
+    defined(CTA_PROD3_SC) || \
     defined(CTA_MAX_SC)
 /* Checking more systematically now */
 # ifdef CTA_ULTRA
@@ -105,6 +121,18 @@ extern "C" {
 # ifdef CTA_MAX_SC
 #  define CTA_KIND 7
 /* #  undef CTA_MAX_SC */
+# endif
+# ifdef CTA_PROD3_SC
+#  ifdef CTA_KIND
+#   error "Configuration conflict - use only one of them"
+#  endif
+#  define CTA_KIND 9
+# endif
+# ifdef CTA_PROD3
+#  ifdef CTA_KIND
+#   error "Configuration conflict - use only one of them"
+#  endif
+#  define CTA_KIND 8
 # endif
 # ifdef CTA_PROD2_SC
 #  ifdef CTA_KIND
@@ -145,10 +173,6 @@ extern "C" {
 # ifndef CTA_KIND
 #  define CTA_KIND 0
 # endif
-//# if defined(CTA_ULTRA)
-//#  error "Configuration conflict - CTA-ULTRA not matching prod-1 or prod-2"
-//#  undef CTA_ULTRA
-//# endif
 # ifdef CTA
 #  undef CTA
 /* #  define CTA CTA_KIND */
@@ -171,7 +195,11 @@ extern "C" {
 #  define H_MAX_PIX 2841
 #  define H_SAVE_MEMORY 1
 # elif CTA_KIND == 3     /* CTA_MAX: more telescopes */
-#  define H_MAX_TEL 500
+#  define H_MAX_TEL 568
+#  ifdef CTA_PROD3_MERGE
+#   define H_MAX_PIX 2368
+#   define H_MAX_SECTORS 23310 /* Needed for ASTRI with 5NN */
+#  endif
 # elif CTA_KIND == 4     /* CTA_SC: fewer telescopes but more pixels */
 #  define H_MAX_TEL 61
 #  if defined(CTA_SC)
@@ -191,12 +219,16 @@ extern "C" {
 #  endif
 # elif CTA_KIND == 5     /* CTA_PROD2: prod-2 (without SCTs) */
 #  define H_MAX_TEL 200
-#  define H_MAX_PIX 2048
+#  define H_MAX_PIX 2368
 #  define NO_LOW_GAIN
 #  ifndef H_MAX_TRG_PER_SECTOR
 #   define H_MAX_TRG_PER_SECTOR 3
 #  endif
-#  define H_MAX_SECTORS (H_MAX_PIX*H_MAX_TRG_PER_SECTOR)
+#  if ( H_MAX_PIX*H_MAX_TRG_PER_SECTOR < 10138 )
+#   define H_MAX_SECTORS 10138
+#  else
+#   define H_MAX_SECTORS (H_MAX_PIX*H_MAX_TRG_PER_SECTOR)
+#  endif
 # elif CTA_KIND == 6     /* CTA_PROD2_SC: prod-2 with SCTs */
 #  define H_MAX_TEL 229
 #  define H_MAX_PIX 11328
@@ -206,13 +238,40 @@ extern "C" {
 #  endif
 #  define H_MAX_SECTORS (2*H_MAX_PIX) /* actually 16292 for SCTs, fewer for others */
 # elif CTA_KIND == 7    /* CTA_MAX_SC: more telescopes and pixels */
-#  define H_MAX_TEL 410 /* 197 + 111 + 102, so we can merge data from three simulations */
+#  define H_MAX_TEL 624 /* prod2: 197 + 111 + 102, so we can merge data from three simulations */
 #  define H_MAX_PIX 11328
 #  ifndef H_MAX_TRG_PER_SECTOR
 #   define H_MAX_TRG_PER_SECTOR 3
 #  endif
-#  define H_MAX_SECTORS 16292 /* Theoretical limit is too much here: (2*H_MAX_PIX*H_MAX_TRG_PER_SECTOR) */
+#  define H_MAX_SECTORS 53508 /* Biggest number needed so far */
+# elif CTA_KIND == 8 /* CTA_PROD3 preliminary */
+#  define H_MAX_TEL 200
+#  define H_MAX_PIX 2368
+#  ifndef H_MAX_TRG_PER_SECTOR
+#   define H_MAX_TRG_PER_SECTOR 4
+#  endif
+#  if ( H_MAX_PIX*H_MAX_TRG_PER_SECTOR < 23310 )
+#   define H_MAX_SECTORS 23310 /* Needed for ASTRI with 5NN */
+#  else
+#   define H_MAX_SECTORS (H_MAX_PIX*H_MAX_TRG_PER_SECTOR)
+#  endif
+# elif CTA_KIND == 9 /* CTA_PROD3_SC preliminary */
+#  ifdef CTA_PROD3_DEMO
+#   define H_MAX_TEL 125
+#  else
+#   define H_MAX_TEL 70
+#  endif
+#  define H_MAX_PIX 11328
+#  ifndef H_MAX_TRG_PER_SECTOR
+#   define H_MAX_TRG_PER_SECTOR 4
+#  endif
+#  define H_MAX_SECTORS 53508 /* Needed for latest SCT configuration */
 # endif
+
+#ifdef CTA_MINI
+# undef H_MAX_TEL
+# define H_MAX_TEL 25
+#endif
 
 # ifndef LARGE_TELESCOPE
 #  define LARGE_TELESCOPE 1
@@ -308,8 +367,9 @@ extern "C" {
 # endif
 #endif
 #ifdef H_SAVE_MEMORY
-# if defined(CTA_PROD2) || defined(CTA_SC) || defined(CTA_PROD2_SC)
-#  define H_MAX_SLICES     50   /**< Maximum number of time slices handled. */
+# if defined(CTA_PROD2) || defined(CTA_SC) || defined(CTA_PROD2_SC) || \
+   defined(CTA_PROD3) || defined(CTA_PROD3_SC) || defined(CTA_MAX_SC) || defined(CTA_MAX)
+#  define H_MAX_SLICES     80   /**< Maximum number of time slices handled. */
 # else
 #  define H_MAX_SLICES     40   /**< Maximum number of time slices handled. */
 # endif
@@ -485,14 +545,21 @@ struct hess_camera_settings_struct
    int num_pixels;          ///< Number of pixels in camera.
    double xpix[H_MAX_PIX];  ///< Pixel x position in camera [m].
    double ypix[H_MAX_PIX];  ///< Pixel y position in camera [m].
+   double zpix[H_MAX_PIX];  ///< Pixel z position w.r.t. focal plane in camera center [m].  {new}
+   double nxpix[H_MAX_PIX]; ///< Pixel pointing direction (nx,ny,1) x component. {new}
+   double nypix[H_MAX_PIX]; ///< Pixel pointing direction (nx,ny,1) y component. {new}
    double area[H_MAX_PIX];  ///< Pixel active area ([m^2]).
    double size[H_MAX_PIX];  ///< Pixel diameter (flat-to-flat, [m]).
+   int pixel_shape[H_MAX_PIX]; ///< Pixel shape type (0: circ., 1,3: hex, 2: square, -1: unknown). {new}
    double cam_rot;          ///< Rotation angle of camera (counter-clock-wise from back side for prime focus camera).
    // Main telescope optics parameters included here:
    double flen;             ///< Focal length of optics [m].
    int num_mirrors;         ///< Number of mirror tiles.
    double mirror_area;      ///< Total area of individual mirrors corrected
                             ///< for inclination [m^2].
+   int curved_surface;      ///< 0 for flat surface, 1 for curved surface. {new}
+   int pixels_parallel;     ///< 0 if (some) pixels are inclined, 1 if all pixels are parallel {new}
+   int common_pixel_shape;  ///< instead of individual pixel shape if al pixels are the same. {new}
 };
 typedef struct hess_camera_settings_struct CameraSettings;
 

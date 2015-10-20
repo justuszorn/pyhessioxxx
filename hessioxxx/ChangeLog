@@ -1,3 +1,174 @@
+2015-07-15 21:47  bernlohr
+
+	* common/fileopen.c (1.20): Input files to fileopen (for reading)
+	  can have '.tar.gz' extension, in which case every file in the tar
+	  archive is read one after the other (assumed to be not compressed
+	  inside the archive).
+
+2015-07-13 16:17  bernlohr
+
+	* hess/io_hess.h (1.92): We need a version adapted to merging
+	  prod-3 data without SCTs.
+
+2015-06-25 15:01  bernlohr
+
+	* common/hconfig.c (1.19): Extend hconfig internal command 'LIST'.
+
+2015-06-15 19:40  bernlohr
+
+	* hess/io_hess.h (1.91): Updating maximum number of trigger groups
+	  to actual values needed for ASTRI and SCTs.
+
+2015-06-15 19:39  bernlohr
+
+	* common/hconfig.c (1.18): Show actual values when configuration
+	  values exceed bounds.
+
+2015-05-31 15:30  bernlohr
+
+	* show_prepro.cc (1.1): And yet another little tool which sits
+	  around here.
+
+2015-05-31 15:17  bernlohr
+
+	* rh3.cc (1.1), rht.cc (1.1), show_types.cc (1.1): Add more tools.
+
+2015-05-31 15:12  bernlohr
+
+	* root/convertTH.cc (1.1): Add tool for ROOT histogram to ASCII
+	  text conversion.
+
+2015-05-31 15:04  bernlohr
+
+	* rh_sens_comp.cc (1.1): Tool for sensitivity comparisons from
+	  'best_of' performance files.
+
+2015-05-31 15:02  bernlohr
+
+	* hess/merge_simtel.c (1.6): Fix typo with '--min-trg-tel' option.
+
+2015-05-31 13:15  bernlohr
+
+	* hess/merge_simtel.c (1.5): Check library limits and against
+	  output to stdout.
+
+2015-05-27 13:38  bernlohr
+
+	* Makefile.xxx (1.14), Makefile.xxx.root (1.2): Make sure that
+	  debugging flags for the link stage can be passed down to the
+	  'root' sub-directory Makefile.
+
+2015-05-27 13:36  bernlohr
+
+	* hess/reconstruct.c (1.58): Due to problem with latest version
+	  temporarily revert to copy of older version.
+
+2015-05-26 17:55  bernlohr
+
+	* hess/io_hess.h (1.90): More fine-tuning of memory use for prod-3.
+
+2015-05-20 16:01  bernlohr
+
+	* Makefile (1.111), hess/io_hess.h (1.89): Increase maximum number
+	  of telescopes for -DCTA_MAX_SC compilation.
+
+2015-05-05 13:50  bernlohr
+
+	* common/fileopen.c (1.19): Make filename '-' to mean stdin or
+	  stdout, for the sloppy user.
+
+2015-05-05 13:49  bernlohr
+
+	* hess/reconstruct.c (1.57): Little fix for code not used yet.
+
+2015-04-30 17:39  bernlohr
+
+	* hess/io_hess.h (1.88): No need for 150 SCTs in prod-3.
+
+2015-04-30 11:47  bernlohr
+
+	* hess/: io_hess.h (1.87), read_hess.c (1.114), reconstruct.c
+	  (1.56), user_analysis.c (1.70), user_analysis.h (1.30): Start
+	  with more flexible image cleaning and data reduction. Incomplete
+	  at this time.
+
+2015-04-27 12:14  bernlohr
+
+	* hessio.dox (1.15): Regenerated with  doxywizard for newer format.
+
+2015-04-27 12:12  bernlohr
+
+	* Makefile (1.110), Makefile.xxx (1.13): Add a cmake build hook for
+	  hessioxxx which does not mess up the provided Makefile.
+
+2015-04-27 12:10  bernlohr
+
+	* corsika/io_simtel.c (1.26): Fix a possible loss of the last
+	  reported CORSIKA inputs line (usually a comment) when reading and
+	  re-writing the inputs (e.g. in extract_corsika_tel or
+	  extra_corsika_multi).
+
+2015-03-13 19:53  bernlohr
+
+	* hess/: io_hess.c (1.87), io_hess.h (1.86): Amending names and
+	  meaning of pixel inclination variables.
+
+2015-02-23 16:39  bernlohr
+
+	* hess/read_hess.c (1.113): Add an option for random pixel
+	  calibration errors.
+
+2015-02-23 15:56  bernlohr
+
+	* hess/: io_hess.c (1.86), io_hess.h (1.85), read_hess.c (1.112):
+	  Change format of CameraSettings data block new version before
+	  anybody is using it.
+
+2015-02-20 14:15  bernlohr
+
+	* hess/read_hess.c (1.111): Deadtime fraction was only applied when
+	  at least one of --only-telescopes or --not-telescopes was used in
+	  addition. Fixing that.
+
+2015-02-05 12:13  bernlohr
+
+	* hess/: io_hess.h (1.84), read_hess.c (1.110): Add preliminary
+	  settings for prod-3.
+
+2015-01-20 15:50  bernlohr
+
+	* hess/camera_image.c (1.31): Run-time option to print the pixel
+	  IDs on top of each pixel in the camera images.
+
+2015-01-20 15:49  bernlohr
+
+	* common/fileopen.c (1.18): Add lz4 compression as a known method
+	  and filename extension.
+
+2014-11-17 16:43  bernlohr
+
+	* Makefile.xxx (1.12), eventio_basic/EventIO.cc (1.33),
+	  eventio_basic/EventIO.hh (1.42), eventio_basic/TestIO.cc (1.25),
+	  eventio_basic/filterio.cc (1.3), eventio_basic/statio.cc (1.10):
+	  Improved MacOS compatibility: everything compiles but C++
+	  programs still not running.
+
+2014-11-17 15:23  bernlohr
+
+	* common/fileopen.c (1.17): Conditional compilation for
+	  glibc-specific line of code.
+
+2014-11-14 20:47  bernlohr
+
+	* corsika/io_simtel.c (1.25): CORSIKA header does not actually
+	  contain how often a shower gets used.  So do not report this with
+	  'read_hess -s' etc.
+
+2014-11-14 16:37  bernlohr
+
+	* eventio_basic/eventio.c (1.43): Change the name of a variable
+	  expf to avoid a compiler warning on some systems.
+
 2014-10-28 15:23  bernlohr
 
 	* hess/extract_hess.c (1.7): Increase the I/O buffer size and add

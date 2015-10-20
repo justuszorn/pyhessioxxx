@@ -30,8 +30,8 @@
  *
  *  @author  Konrad Bernloehr
  *  @date    1997 to 2010
- *  @date    @verbatim CVS $Date: 2014/05/07 13:08:25 $ @endverbatim
- *  @version @verbatim CVS $Revision: 1.24 $ @endverbatim
+ *  @date    @verbatim CVS $Date: 2015/04/27 10:10:29 $ @endverbatim
+ *  @version @verbatim CVS $Revision: 1.26 $ @endverbatim
  */
 
 /* ================================================================ */
@@ -210,8 +210,8 @@ int print_tel_block (IO_BUFFER *iobuf)
          printf(", profile %d).\n", (iv>>10)&0x3ff);
          if ( data[6] > 0. )
             printf("   TSTART is off.\n");
-         printf("   Cherenkov bunch size %4.2f from %1.0f to %1.0f nm, events used %d times.\n",
-           data[84], data[95], data[96], (int)(data[97]+0.1));
+         printf("   Cherenkov bunch size %4.2f from %1.0f to %1.0f nm.\n",
+           data[84], data[95], data[96]);
          printf("   Interaction: SIBYLL %d/%d, QGSJET %d/%d, DPMJET %d/%d, V/N/E %d\n",
             (int)(data[138]+0.1), (int)(data[139]+0.1),
             (int)(data[140]+0.1), (int)(data[141]+0.1),
@@ -256,11 +256,13 @@ int write_input_lines (IO_BUFFER *iobuf, struct linked_string *list)
    if ( list == NULL )
       return -1;
    
-   for (n=0, xl=list; xl->text != NULL && xl->next != NULL; xl=xl->next)
+   for ( n=0, xl=list; xl != NULL; xl=xl->next )
+   {
+      if ( xl->text == NULL )
+         break;
       n++;
-   if ( xl != NULL )
-      if ( xl->text != NULL )
-      	 n++;
+   }
+
    if ( n<=0 )
       return 0;
 
@@ -273,13 +275,13 @@ int write_input_lines (IO_BUFFER *iobuf, struct linked_string *list)
    put_item_begin(iobuf,&item_header);
    
    put_long(n,iobuf);
-   for ( xl=list; xl->next != NULL; xl=xl->next )
+   for ( n=0, xl=list; xl != NULL; xl=xl->next )
    {
       if ( xl->text == NULL )
-      	 break;
+         break;
       put_string(xl->text,iobuf);
    }
-   
+
    return put_item_end(iobuf,&item_header);
 }
 

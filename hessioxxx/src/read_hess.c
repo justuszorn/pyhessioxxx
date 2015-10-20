@@ -1,6 +1,6 @@
 /* ============================================================================
 
-Copyright (C) 2001, 2003, 2005, 2006, 2008, 2009, 2010, 2011, 2013, 2014  Konrad Bernloehr
+Copyright (C) 2001, 2003, 2005, 2006, 2008, 2009, 2010, 2011, 2013, 2014, 2015  Konrad Bernloehr
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -89,6 +89,8 @@ Options:
    --theta-scale f (Scale fixed and optimized theta cut by this factor.)
    --theta-E-scale t0,ts,min,max (Energy-dependent scaling beyond multiplicity.)
    --tail-cuts l,h[,n,f] *(Low and high level tail cuts to be applied in analysis.)
+   --nb-radius r1[,r2[,r3]] *(Maximum distance of neighbour pixels [px diam.])
+   --ext-radius r  *(Radius to extend preserved pixels beyond cleaning [px diam.])
    --dE2-cut c     (Cut parameter for dE2 cut.)
    --hess-standard-cuts (Apply HESS-style selection with standard cuts.)
    --hess-hard-cuts (Apply HESS-style selection with hard cuts.)
@@ -99,6 +101,10 @@ Options:
    --hmax-cut c    (Scale parameter for hmax cut strictness, def=1.0).
    --min-img-angle a (Only use image pairs intersecting at angle > a deg, def=0).
    --min-disp d    *(Do not use round images with disp = (1-w/l) < d, def=0).
+   --max-core-distance r *(Only use images from telescope not further from core).
+   --impact-range r,x,y (Accept only events with reconstructed core in range).
+   --true-impact-range r,x,y (Accept only events with true core in range).
+                    Note that r is in shower plane but x,y ranges are on surface.
    --clip-camera-radius r *(In image reconstruction clip camera at radius r deg.)
    --clip-camera-diameter d *(Same as before but with diameter d deg.)
    --clip-pixel-amplitude a *(Calibrated pixel ampl. does not exceed a mean p.e.)
@@ -114,11 +120,15 @@ Options:
                    windows narrower than a single-p.e. pulse.)
    --integration-rescale *(Rescale for single-p.e. fraction in window; default)
    --calib-scale f *(Rescale from mean p.e. to experiment units. Default: 0.92)
+   --calib-error f (Random pixel relative calibration error. Default: 0.)
+   --calibrate     (Store calibrated pixel intensities to DST file, if possible.)
+   --only-calibrated (Like '--calibrate' but omit raw data from DST.)
    --diffuse-mode  (True shower position assumed as source position.)
    --random-seed n|auto (Initialize random number generator.)
    --off-axis-range a1,a2 (Only for diffuse mode, restricting range in deg.)
    --auto-lookup   (Automatically generate lookup table (gammas only).)
    --lookup-file name (Override automatic naming of lookup files.)
+   --cleaning n    (Imaging cleaning setting: 0=no, 1=sums, 2=samples, 3=both)
    --dst-level n   (Level of data reduction when writing DST-type output.)
                    Valid levels: 0, 1, 2, 3, 10, 11, 12, 13.
                    Raw data is stripped off at all levels except 0 and 10.
@@ -138,8 +148,8 @@ Parameters followed by a '*' can be telescope-type-specific if preceded by a
  *
  *  @author Konrad Bernloehr
  *
- *  @date    @verbatim CVS $Date: 2014/09/02 15:54:33 $ @endverbatim
- *  @version @verbatim CVS $Revision: 1.109 $ @endverbatim
+ *  @date    @verbatim CVS $Date: 2015/04/30 09:47:11 $ @endverbatim
+ *  @version @verbatim CVS $Revision: 1.114 $ @endverbatim
  */
 
 /** @defgroup read_hess_c The read_hess (aka read_simtel, read_cta) program */
@@ -244,6 +254,40 @@ static void init_rand(int is)
    srand48((long)rnd_seed);
 #endif
 }
+
+#ifndef WITH_RANDFLAT
+static int g48_set;
+static double g48_next;
+
+double grand48(double mean, double sigma);
+
+/** Like RandFlat() from rndm2.c but using the drand48 engine */
+
+double grand48(double mean, double sigma)
+{
+  register double r;
+  double v1,v2,fac,val;
+
+  if ( g48_set ) 
+  {
+    g48_set = 0;
+    return mean+sigma*g48_next;
+  }
+
+  do 
+  {
+    v1 = 2.0 * drand48() - 1.0;
+    v2 = 2.0 * drand48() - 1.0;
+    r = v1*v1 + v2*v2;
+  } while ( r > 1.0 );
+
+  fac = sqrt(-2.0*log(r)/r);
+  val = v1*fac;
+  g48_next = val;
+  g48_set = 1;
+  return mean+sigma*v2*fac;
+}
+#endif
 
 /* ---------------------- mc_event_fill ------------------------- */
 /** 
@@ -458,6 +502,8 @@ static void syntax (char *program)
    printf("   --theta-scale f (Scale fixed and optimized theta cut by this factor.)\n");
    printf("   --theta-E-scale t0,ts,min,max (Energy-dependent scaling beyond multiplicity.)\n");
    printf("   --tail-cuts l,h[,n,f] *(Low and high level tail cuts to be applied in analysis.)\n");
+   printf("   --nb-radius r1[,r2[,r3]] *(Maximum distance of neighbour pixels [px diam.])\n");
+   printf("   --ext-radius r  *(Radius to extend preserved pixels beyond cleaning [px diam.])\n");
    printf("   --dE2-cut c     (Cut parameter for dE2 cut.)\n");
    printf("   --hess-standard-cuts (Apply HESS-style selection with standard cuts.)\n");
    printf("   --hess-hard-cuts (Apply HESS-style selection with hard cuts.)\n");
@@ -468,6 +514,10 @@ static void syntax (char *program)
    printf("   --hmax-cut c    (Scale parameter for hmax cut strictness, def=1.0).\n");
    printf("   --min-img-angle a (Only use image pairs intersecting at angle > a deg, def=0).\n");
    printf("   --min-disp d    *(Do not use round images with disp = (1-w/l) < d, def=0).\n");
+   printf("   --max-core-distance r *(Only use images from telescope not further from core).\n");
+   printf("   --impact-range r,x,y (Accept only events with reconstructed core in range).\n");
+   printf("   --true-impact-range r,x,y (Accept only events with true core in range).\n");
+   printf("                    Note that r is in shower plane but x,y ranges are on surface.\n");
    printf("   --clip-camera-radius r *(In image reconstruction clip camera at radius r deg.)\n");
    printf("   --clip-camera-diameter d *(Same as before but with diameter d deg.)\n");
    printf("   --clip-pixel-amplitude a *(Calibrated pixel ampl. does not exceed a mean p.e.)\n");
@@ -484,13 +534,15 @@ static void syntax (char *program)
    printf("                   windows narrower than a single-p.e. pulse.)\n");
    printf("   --integration-rescale *(Rescale for single-p.e. fraction in window; default)\n");
    printf("   --calib-scale f *(Rescale from mean p.e. to experiment units. Default: 0.92)\n");
+   printf("   --calib-error f (Random pixel relative calibration error. Default: 0.)\n");
    printf("   --calibrate     (Store calibrated pixel intensities to DST file, if possible.)\n");
-   printf("   --only-calibrated (Like '--calibrated' but omit raw data from DST.)\n");
+   printf("   --only-calibrated (Like '--calibrate' but omit raw data from DST.)\n");
    printf("   --diffuse-mode  (True shower position assumed as source position.)\n");
    printf("   --random-seed n|auto (Initialize random number generator.)\n");
    printf("   --off-axis-range a1,a2 (Only for diffuse mode, restricting range in deg.)\n");
    printf("   --auto-lookup   (Automatically generate lookup table (gammas only).)\n");
    printf("   --lookup-file name (Override automatic naming of lookup files.)\n");
+   printf("   --cleaning n    (Imaging cleaning setting: 0=no, 1=sums, 2=samples, 3=both)\n");
    printf("   --dst-level n   (Level of data reduction when writing DST-type output.)\n");
    printf("                   Valid levels: 0, 1, 2, 3, 10, 11, 12, 13.\n");
    printf("                   Raw data is stripped off at all levels except 0 and 10.\n");
@@ -659,8 +711,11 @@ int main (int argc, char **argv)
    double hmax_cut = 1.;
    size_t min_pix = 2, min_tel_img = 2, max_tel_img = 999;
    int user_ana = 0;
+   double impact_range[3] = { 0., 0., 0. };
+   double true_impact_range[3] = { 0., 0., 0. };
    size_t events = 0, max_events = 0;
-   int dst_level = -1;
+   int dst_level = -1; /* <0: No data summary processing; 0: samples -> sums; ...; 3: Hillas parameters only; ...  */
+   int cleaning = 0; /* 0: no cleaning, 1: clean + store sums, 2: clean + store samples, 3: clean + store both */
    int zero_suppression = -1;
    char *dst_fname = NULL;
    int mc_shower_stored = -1, mc_event_stored = -1, mc_pe_sum_stored = -1;
@@ -672,6 +727,7 @@ int main (int argc, char **argv)
    int with_clipping = 0;
    int do_calibrate = 0, only_calibrated = 0;
    double broken_pixels_fraction = 0., dead_time_fraction = 0.;
+   double calerror = 0.;
 
    static AllHessData *hsdata;
    static NextFile first_file;
@@ -847,8 +903,17 @@ int main (int argc, char **argv)
 #ifdef CTA_PROD2_SC
          printf("   CTA_PROD2_SC\n");
 #endif
+#ifdef CTA_PROD3
+         printf("   CTA_PROD3\n");
+#endif
+#ifdef CTA_PROD3_SC
+         printf("   CTA_PROD3_SC\n");
+#endif
 #ifdef CTA_MAX_SC
          printf("   CTA_MAX_SC\n");
+#endif
+#ifdef CTA_MINI
+         printf("   CTA_MINI\n");
 #endif
 #ifdef HESS_PHASE_3
          printf("   HESS_PHASE_3\n");
@@ -966,6 +1031,20 @@ int main (int argc, char **argv)
 	 argv++;
 	 continue;
       }
+      else if ( strcmp(argv[1],"--cleaning") == 0 && argc > 2 )
+      {
+       	 cleaning = atoi(argv[2]);
+         if ( cleaning > 0 )
+         {
+            if ( reco_flag < 3 )
+               reco_flag = 3; /* Implied image cleaning needs reconstruction flag of at least 3. */
+            if ( zero_suppression <= 0 )
+               zero_suppression = 3; /* Implied auto zero suppression */
+         }
+	 argc -= 2;
+	 argv += 2;
+	 continue;
+      }
       else if ( strcmp(argv[1],"--dst-level") == 0 && argc > 2 )
       {
        	 dst_level = atoi(argv[2]);
@@ -973,7 +1052,8 @@ int main (int argc, char **argv)
 	 argv += 2;
 	 continue;
       }
-      else if ( strcmp(argv[1],"--dst-file") == 0 && argc > 2 )
+      else if ( (strcmp(argv[1],"--dst-file") == 0 || 
+         strcmp(argv[1],"--output-file") == 0) && argc > 2 )
       {
        	 dst_fname = argv[2];
 	 argc -= 2;
@@ -1093,6 +1173,21 @@ int main (int argc, char **argv)
 	 argv += 2;
 	 continue;
       }
+      else if ( (strcmp(argv[1],"--nb-radius") == 0 ||
+                 strcmp(argv[1],"--nb-distance") == 0) && argc > 2 )
+      {  // Type-specific parameter (set immediately)
+         double rnb[3] = { 0., 0., 0. };
+         int na = 0;
+         if ( (na=sscanf(argv[2],"%lf,%lf,%lf",&rnb[0],&rnb[1],&rnb[2])) < 1 )
+	 {
+	    fprintf(stderr,"Syntax error in neighbourhood radii.\n");
+            exit(1);
+	 }
+         user_set_nb_radius(rnb);
+	 argc -= 2;
+	 argv += 2;
+	 continue;
+      }
       else if ( (strcmp(argv[1],"--dE-cut") == 0 ||
                  strcmp(argv[1],"--eres-cut") == 0 ||
                  strcmp(argv[1],"--de-cut") == 0) && argc > 2 )
@@ -1205,6 +1300,48 @@ int main (int argc, char **argv)
 	 if ( pv[1] == 0. )
 	    pv[2] = pv[3] = pv[0];
          user_set_length_max_cut(pv);
+	 argc -= 2;
+	 argv += 2;
+	 continue;
+      }
+      else if ( strcmp(argv[1],"--max-core-distance") == 0 && argc > 2 )
+      {
+         double rt = atoi(argv[2]);
+         user_set_max_core_distance(rt);
+	 argc -= 2;
+	 argv += 2;
+	 continue;
+      }
+      else if ( strcmp(argv[1],"--impact-range") == 0 && argc > 2 )
+      {
+         int nv = 0;
+         double rr=0., rx=0., ry=0.;
+         impact_range[0] = impact_range[1] = impact_range[2] = 0.;
+         nv = sscanf(argv[2],"%lf,%lf,%lf",&rr,&rx,&ry);
+         if ( nv > 0 )
+            impact_range[0] = rr;
+         if ( nv > 1 )
+            impact_range[1] = rx;
+         if ( nv > 2 )
+            impact_range[2] = ry;
+         user_set_impact_range(impact_range);
+	 argc -= 2;
+	 argv += 2;
+	 continue;
+      }
+      else if ( strcmp(argv[1],"--true-impact-range") == 0 && argc > 2 )
+      {
+         int nv = 0;
+         double rr=0., rx=0., ry=0.;
+         true_impact_range[0] = true_impact_range[1] = true_impact_range[2] = 0.;
+         nv = sscanf(argv[2],"%lf,%lf,%lf",&rr,&rx,&ry);
+         if ( nv > 0 )
+            true_impact_range[0] = rr;
+         if ( nv > 1 )
+            true_impact_range[1] = rx;
+         if ( nv > 2 )
+            true_impact_range[2] = ry;
+         user_set_true_impact_range(true_impact_range);
 	 argc -= 2;
 	 argv += 2;
 	 continue;
@@ -1540,6 +1677,18 @@ int main (int argc, char **argv)
 	 argv += 2;
 	 continue;
       }
+      else if ( strcmp(argv[1],"--calib-error") == 0 && argc > 2 )
+      {
+         double s = 0.0;
+         sscanf(argv[2],"%lf",&s);
+         if ( s >= 0. && s < 1. )
+            calerror = s;
+         else
+            fprintf(stderr,"Calibration scale error %f is out of range and ignored.\n", s);
+	 argc -= 2;
+	 argv += 2;
+	 continue;
+      }
       else if ( strcmp(argv[1],"--zero-suppression") == 0 && argc > 2 )
       {
          if ( strcasecmp(argv[2],"auto") == 0 )
@@ -1729,7 +1878,7 @@ int main (int argc, char **argv)
 
    if ( dst_fname == NULL )
      dst_level = -1;
-   else if ( dst_level >= 0 && iobuf->output_file == NULL )
+   else if ( (dst_level >= 0 || cleaning > 0) && iobuf->output_file == NULL )
    {
       iobuf->output_file = fileopen(dst_fname,"w");
       if ( (dst_level%10) >= 2 )
@@ -1990,7 +2139,7 @@ int main (int argc, char **argv)
          continue;
       }
       
-      if ( (dst_level >= 0 && dst_level <= 3) ||
+      if ( cleaning > 0 || (dst_level >= 0 && dst_level <= 3) ||
            (dst_level >= 10 && dst_level <= 13) ) /* DST-type data extraction */
       {
          if ( dst_level == 0 || dst_level == 1 ) /* Everything copied verbatim except event data */
@@ -2041,6 +2190,16 @@ int main (int argc, char **argv)
                mc_pe_sum_stored = 0; /* Delay until there is a trigger */
                last_mc_pe_sum_id = item_header.ident;
             }
+         }
+         else if ( cleaning > 0 && dst_level < 0 )
+         {
+            if ( (int) item_header.type != IO_TYPE_HESS_EVENT )
+               if ( write_io_block(iobuf) )
+               {
+                  fprintf(stderr,"Writing DST output failed on item type %lu, id %ld.\n",
+                     item_header.type, item_header.ident);
+                  exit(1);
+               }
          }
          else
          {
@@ -2426,6 +2585,7 @@ int main (int argc, char **argv)
                fprintf(stderr,"Event %d triggered without preceding p.e. list\n",
                   hsdata->mc_event.event);
 #endif
+            /* Not always all telescopes should get used in the analysis or the DST output */
             if ( num_only > 0 || num_not > 0 )
             {
                for (itel=0; itel<hsdata->run_header.ntel; itel++)
@@ -2466,21 +2626,6 @@ int main (int argc, char **argv)
 			         hsdata->event.teldata[itel].raw->known = keep_known;
                         }
                      }
-                     if ( dead_time_fraction > 0. )
-                     {
-                        for (jtel=0; jtel<num_only; jtel++)
-                        {
-                           if ( hsdata->event.teldata[itel].known )
-                           {
-#ifdef WITH_RANDFLAT
-                              if ( RandFlat() < dead_time_fraction )
-#else
-                              if ( drand48() < dead_time_fraction )
-#endif
-                                 hsdata->event.teldata[itel].known = 0;
-                           }
-                        }
-                     }
                   }
                }
             }
@@ -2510,26 +2655,42 @@ int main (int argc, char **argv)
                   }
                }
             }
+            if ( dead_time_fraction > 0. )
+            {
+               for (itel=0; itel<hsdata->run_header.ntel; itel++)
+               {
+                  if ( hsdata->event.teldata[itel].known )
+                  {
+#ifdef WITH_RANDFLAT
+                     if ( RandFlat() < dead_time_fraction )
+#else
+                     if ( drand48() < dead_time_fraction )
+#endif
+                        hsdata->event.teldata[itel].known = 0;
+                  }
+               }
+            }
             if ( trg_req > 0 )
             {
-               for (itel=0; itel<hsdata->event.central.num_teltrg; itel++ )
+               int jtel; /* Used to iterate in the list of triggered telescopes */
+               for (jtel=0; jtel<hsdata->event.central.num_teltrg; jtel++ )
                {
-                  int trg_req_tel = trg_req, jtel;
-                  tel_id = hsdata->event.central.teltrg_list[itel];
-                  jtel = find_tel_idx(tel_id);
-                  if ( jtel < 0 || jtel >= H_MAX_TEL )
+                  int trg_req_tel = trg_req;
+                  tel_id = hsdata->event.central.teltrg_list[jtel];
+                  itel = find_tel_idx(tel_id);
+                  if ( itel < 0 || itel >= H_MAX_TEL )
                      continue;
                   if ( type_set )
                   {
-                     int itype = user_get_type(jtel);
+                     int itype = user_get_type(itel);
                      struct user_parameters *up = user_get_parameters(itype);
                      trg_req_tel = up->i.trg_req;
                   }
-                  if ( (trg_req_tel & hsdata->event.central.teltrg_type_mask[itel]) == 0 )
+                  if ( (trg_req_tel & hsdata->event.central.teltrg_type_mask[jtel]) == 0 )
                   {
                      printf("Telescope %d has trigger pattern %d but requirement is %d. Discarding now.\n",
-                        tel_id, hsdata->event.central.teltrg_type_mask[itel], trg_req_tel);
-                     hsdata->event.teldata[jtel].known = 0;
+                        tel_id, hsdata->event.central.teltrg_type_mask[jtel], trg_req_tel);
+                     hsdata->event.teldata[itel].known = 0;
                   }
                }
             }
@@ -2790,7 +2951,7 @@ int main (int argc, char **argv)
                }
                if ( dst_level == 0 )
                   rc = write_hess_event(iobuf,&hsdata->event,-1 ^ RAWDATA_FLAG );
-               else if ( dst_level == 10 )
+               else if ( dst_level == 10 || cleaning > 0 )
                   rc = write_hess_event(iobuf,&hsdata->event,-1);
                else
                   rc = write_hess_event(iobuf,&hsdata->event,
@@ -3021,6 +3182,24 @@ int main (int argc, char **argv)
                printf("read_hess_laser_calib(), rc = %d\n",rc);
             if ( showdata )
                print_hess_laser_calib(iobuf);
+            /* Optionally add random pixel calibration error */
+            if ( calerror > 0.0 )
+            {
+               int igain, ipix;
+               LasCalData *cal = &hsdata->tel_lascal[itel];
+               for ( igain=0; igain<cal->num_gains; igain++ )
+               {
+                  for ( ipix=0; ipix<cal->num_pixels; ipix++ )
+                  {
+#ifdef WITH_RANDFLAT
+                     double g = RandGauss(0.,calerror);
+#else
+                     double g = grand48(0.,calerror);
+#endif
+                     cal->calib[igain][ipix] *= exp(g);
+                  }
+               }
+            }
             break;
 
          /* =================================================== */

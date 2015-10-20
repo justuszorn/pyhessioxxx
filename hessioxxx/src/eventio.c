@@ -25,8 +25,8 @@
  *   
  *  @author  Konrad Bernloehr
  *  @date    1991 to 2010
- *  @date    @verbatim CVS $Date: 2014/08/04 13:05:28 $ @endverbatim
- *  @version @verbatim CVS $Revision: 1.42 $ @endverbatim
+ *  @date    @verbatim CVS $Date: 2014/11/14 15:37:00 $ @endverbatim
+ *  @version @verbatim CVS $Revision: 1.43 $ @endverbatim
     
 @verbatim
  ================ General comments to eventio.c ======================
@@ -458,7 +458,7 @@ int extend_io_buffer (IO_BUFFER *iobuf, unsigned next_byte, long increment)
       char msg[256];
       sprintf(msg,"I/O block extended by %ld to %ld bytes",
          increment,new_length);
-      //Information(msg);
+      Information(msg);
       iobuf->buffer = tptr;
       iobuf->data = iobuf->buffer + offset;
       iobuf->buflen = new_length;
@@ -2752,12 +2752,12 @@ void fltp_to_sfloat (const float *fnum, uint16_t *snum)
       exponent = mantissa = 0;
    else
    {
-      uint32_t expf = ((val.lnum & 0x7f800000U) >> 23); /* The float exponent */
-      uint32_t mntf = (val.lnum & 0x007fe000U); /* The relevant part of the float mantissa */
-      exponent = (uint16_t) ((expf - 127 + 15) & 0x1fU);
-      exponent_d = (((int)expf - 127 + 15));
-      mantissa = (uint16_t) (mntf >> 13);
-      if ( expf == 255 ) /* Infinity or NaN: */
+      uint32_t expflt = ((val.lnum & 0x7f800000U) >> 23); /* The float exponent */
+      uint32_t mntflt = (val.lnum & 0x007fe000U); /* The relevant part of the float mantissa */
+      exponent = (uint16_t) ((expflt - 127 + 15) & 0x1fU);
+      exponent_d = (((int)expflt - 127 + 15));
+      mantissa = (uint16_t) (mntflt >> 13);
+      if ( expflt == 255 ) /* Infinity or NaN: */
          exponent = 31; /* Mantissa should take care which of those. */
       else if ( exponent_d <= 0 ) /* outside range, use zero or de-normalized */
       {

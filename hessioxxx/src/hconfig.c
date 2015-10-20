@@ -25,8 +25,8 @@
    @brief Configuration control and procedure call interface.
 
    @author  Konrad Bernloehr
-   @date    $Date: 2014/02/20 11:40:42 $
-   @version $Revision: 1.17 $
+   @date    $Date: 2015/06/25 13:01:17 $
+   @version $Revision: 1.19 $
 
 
      This is the module controlling all configuration except
@@ -173,6 +173,7 @@ static void config_syntax_error (const char *name, const char *text);
 static void config_info (const char *name, const char *text);
 static int set_config_values (CONFIG_ITEM *item, int first,
    int last, char *text);
+static void display_config_current (CONFIG_ITEM *item);
 static void display_config_item (CONFIG_ITEM *item);
 static int do_reset_func (const char *text);
 static int signed_config_val (const char *name, const char *text, const char *lbound,
@@ -2576,6 +2577,67 @@ static int f_status_config (const char *name, CONFIG_VALUES *dummy)
 
 static int f_list_config (const char *name, CONFIG_VALUES *dummy)
 {
+   CONFIG_BLOCK *block;
+   CONFIG_ITEM *itemlist, *item;
+   int item_no;
+   
+   char *li_style = getenv("HCONFIG_LIST_STYLE");
+   char *li_prefix = getenv("HCONFIG_LIST_PREFIX");
+   int ltx_style = 0;
+   if ( li_style != NULL )
+      if ( strcmp(li_style,"latex") == 0 )
+         ltx_style = 1;
+
+   for ( block=(&first_config_block); block != (CONFIG_BLOCK *) NULL;
+         block=block->next )
+   {
+      if ( (itemlist=block->items) == (CONFIG_ITEM *) NULL )
+         break;
+      for (item_no=0; itemlist[item_no].name != (char *) NULL; item_no++)
+      {
+         int show_it = 0;
+         item = &itemlist[item_no];
+         if ( item == (CONFIG_ITEM *) NULL )
+            continue;
+         if ( name[0] == '\0' || strcmp(name,"*") == 0 || strcmp(name,"all") == 0 )
+            show_it = 1;
+         else if ( strcmp(name,item->name) == 0 )
+            show_it = 1;
+         else if ( strcmp(name,"unlocked") == 0 && item->internal.locked == 0 )
+            show_it = 1;
+         else if ( strcmp(name,"locked") == 0 && item->internal.locked != 0 )
+            show_it = 1;
+         else if ( strcmp(name,"modified") == 0 && item->internal.values.nmod > 0 )
+            show_it = 1;
+         if ( ! show_it )
+            continue;
+#ifdef _REENTRANT
+         pthread_mutex_lock(&item->internal.mutex_setval);
+#endif
+         if ( li_prefix != NULL )
+         { 
+            Output(li_prefix);
+            if ( ltx_style )
+               Output(" & ");
+            else
+               Output("\t");
+         }
+         Output(item->name);
+         if ( ltx_style )
+            Output(" & ");
+         else
+            Output(" = ");
+         display_config_current(item);
+         if ( ltx_style )
+            Output(" \\\\\n");
+         else
+            Output("\n");
+#ifdef _REENTRANT
+         pthread_mutex_unlock(&item->internal.mutex_setval);
+#endif
+      }
+   }
+
    return 0;
 }
 
@@ -2594,7 +2656,7 @@ static int f_echo (const char *name, CONFIG_VALUES *dummy)
    return 0;
 }
 
-/* ----------------------- f_echo ------------------------------ */
+/* ----------------------- f_warning ------------------------------ */
 
 static int f_warning (const char *name, CONFIG_VALUES *dummy)
 {
@@ -2602,7 +2664,7 @@ static int f_warning (const char *name, CONFIG_VALUES *dummy)
    return 0;
 }
 
-/* ----------------------- f_echo ------------------------------ */
+/* ----------------------- f_error ------------------------------ */
 
 static int f_error (const char *name, CONFIG_VALUES *dummy)
 {
@@ -2684,60 +2746,23 @@ static int f_show_config (const char *name, CONFIG_VALUES *val)
    return 0;
 }
 
-/* --------------------- display_config_item ------------------------ */
+/* --------------------- display_config_current ------------------------ */
 /**
- *  Display a single configuration item (internal usage only).
+ *  Display current values of a single configuration item (internal usage only).
 */
 
-static void display_config_item (CONFIG_ITEM *item)
+static void display_config_current (CONFIG_ITEM *item)
 {
-   int inum;
    union ConfigDataPointer data;
-   char message[1024];
+   char message[10240];
 
-   if ( item == (CONFIG_ITEM *) NULL )
-      return;
-#ifdef _REENTRANT
-   pthread_mutex_lock(&item->internal.mutex_setval);
-#endif
    data.anything = item->data;
-   if (strlen(item->name) <= 17 )
-      sprintf(message,"  %c %-17s %-7s ",
-      	 item->internal.locked?'#':' ',item->name,item->type);
-   else
-      sprintf(message,"  %c %s\n    %-17s %-7s ",
-      	 item->internal.locked?'#':' ',item->name," ",item->type);
-   Output(message);
+
    if ( item->internal.itype > 0 && item->internal.itype != 50 )
    {
-      snprintf(message,sizeof(message),"%s%-8d %-8s %-8s ",
-          /* If the data pointer was allocated, mark it with a '*' */
-          (item->function != NULL)?"*":" ",
-            item->size,
-                 (item->lbound != (char *) NULL)?item->lbound:" ",
-                      (item->ubound != (char *) NULL)?item->ubound:" ");
-      if ( item->initial != (char *) NULL )
-         if ( strlen(item->initial) > 8 )
-            snprintf(message+strlen(message),sizeof(message)-strlen(message)-1,
-	       "\n    %-17s Initial:  "," ");
-      strcat(message,(item->flags & CFG_REJECT_MODIFICATION)?"*":" ");
-      Output(message);
-      if ( strlen((item->initial != (char *) NULL)?item->initial:" ") <= 8 )
-      {
-         sprintf(message,"%-8s ",
-            (item->initial != (char *) NULL)?item->initial:" ");
-         Output(message);
-      }
-      else
-         Output((item->initial != (char *) NULL)?item->initial:" ");
-      if ( item->size > 1 )
-      {
-         snprintf(message,sizeof(message),"\n    %-17s Current:   "," ");
-         Output(message);
-      }
       if ( item->internal.itype != 30 )
       {
-         int all_shown = 0;
+         int all_shown = 0, inum = 0;
          if ( item->size > 1 )
          {
             all_shown = 1;
@@ -2848,6 +2873,58 @@ static void display_config_item (CONFIG_ITEM *item)
       else /* itype==30 */
          Output((char *)item->data);
    }
+}
+
+/* --------------------- display_config_item ------------------------ */
+/**
+ *  Display a single configuration item (internal usage only).
+*/
+
+static void display_config_item (CONFIG_ITEM *item)
+{
+   char message[1024];
+
+   if ( item == (CONFIG_ITEM *) NULL )
+      return;
+#ifdef _REENTRANT
+   pthread_mutex_lock(&item->internal.mutex_setval);
+#endif
+   if (strlen(item->name) <= 17 )
+      sprintf(message,"  %c %-17s %-7s ",
+      	 item->internal.locked?'#':' ',item->name,item->type);
+   else
+      sprintf(message,"  %c %s\n    %-17s %-7s ",
+      	 item->internal.locked?'#':' ',item->name," ",item->type);
+   Output(message);
+   if ( item->internal.itype > 0 && item->internal.itype != 50 )
+   {
+      snprintf(message,sizeof(message),"%s%-8d %-8s %-8s ",
+          /* If the data pointer was allocated, mark it with a '*' */
+          (item->function != NULL)?"*":" ",
+            item->size,
+                 (item->lbound != (char *) NULL)?item->lbound:" ",
+                      (item->ubound != (char *) NULL)?item->ubound:" ");
+      if ( item->initial != (char *) NULL )
+         if ( strlen(item->initial) > 8 )
+            snprintf(message+strlen(message),sizeof(message)-strlen(message)-1,
+	       "\n    %-17s Initial:  "," ");
+      strcat(message,(item->flags & CFG_REJECT_MODIFICATION)?"*":" ");
+      Output(message);
+      if ( strlen((item->initial != (char *) NULL)?item->initial:" ") <= 8 )
+      {
+         sprintf(message,"%-8s ",
+            (item->initial != (char *) NULL)?item->initial:" ");
+         Output(message);
+      }
+      else
+         Output((item->initial != (char *) NULL)?item->initial:" ");
+      if ( item->size > 1 )
+      {
+         snprintf(message,sizeof(message),"\n    %-17s Current:   "," ");
+         Output(message);
+      }
+      display_config_current(item);
+   }
    else if ( item->internal.itype < 0 )
    {
       snprintf(message,sizeof(message),"%s %d [of %d bytes each]",
@@ -2905,6 +2982,7 @@ static int signed_config_val (const char *name, const char *text,
       lower = atol(lbound);
       if ( value < lower )
       {
+fprintf(stderr,"%s: integer lower bound violation for %ld >= %ld\n", name, value, lower);
          if ( strict ) 
          {
             config_syntax_error(name,"Violates lower bound");
@@ -2925,12 +3003,14 @@ static int signed_config_val (const char *name, const char *text,
       upper = atol(ubound);
       if ( value > upper )
       {
+fprintf(stderr,"%s: integer upper bound violation for %ld <= %ld\n", name, value, upper);
          if ( strict ) 
          {
             config_syntax_error(name,"Violates upper bound");
             return -1;
          }
          value = upper;
+
          config_info(name,"Set to upper bound");
       }
    }
@@ -3002,11 +3082,13 @@ static int unsigned_config_val (const char *name, const char *text,
 #endif
       if ( value < lower )
       {
+fprintf(stderr,"%s: unsigned lower bound violation for %lu >= %lu\n", name, value, lower);
          if ( strict ) 
          {
             config_syntax_error(name,"Violates lower bound");
             return -1;
          }
+         config_info(name,"Set to lower bound");
          value = lower;
          config_info(name,"Set to lower bound");
       }
@@ -3026,6 +3108,7 @@ static int unsigned_config_val (const char *name, const char *text,
 #endif
       if ( value > upper )
       {
+fprintf(stderr,"%s: unsigned upper bound violation for %lu <= %lu\n", name, value, upper);
          if ( strict ) 
          {
             config_syntax_error(name,"Violates upper bound");
@@ -3137,6 +3220,7 @@ static int real_config_val (const char *name, const char *text,
       lower = atof(lbound);
       if ( value < lower )
       {
+fprintf(stderr,"%s: lower bound violation for %f >= %f\n", name, value, lower);
          if ( strict ) 
          {
             config_syntax_error(name,"Violates lower bound");
@@ -3156,6 +3240,7 @@ static int real_config_val (const char *name, const char *text,
       upper = atof(ubound);
       if ( value > upper )
       {
+fprintf(stderr,"%s: upper bound violation for %f (%s) <= %f (%s)\n", name, value, text, upper, ubound);
          if ( strict ) 
          {
             config_syntax_error(name,"Violates upper bound");

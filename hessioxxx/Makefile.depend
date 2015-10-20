@@ -1,57 +1,4 @@
 # DO NOT DELETE THIS LINE -- make  depend  depends  on  it.
-read_hess_nr: src/read_hess_nr.c include/initial.h include/io_basic.h \
- include/warning.h include/mc_tel.h include/io_basic.h include/history.h \
- include/io_hess.h include/mc_tel.h include/histogram.h \
- include/io_histogram.h include/fileopen.h include/straux.h \
- include/rec_tools.h include/warning.h include/camera_image.h
-listio: src/listio.c include/initial.h include/io_basic.h \
- include/warning.h include/fileopen.h
-testio: src/testio.c include/initial.h include/warning.h \
- include/io_basic.h include/fileopen.h
-read_hess: src/read_hess.c include/initial.h include/io_basic.h \
- include/warning.h include/mc_tel.h include/io_basic.h include/history.h \
- include/io_hess.h include/mc_tel.h include/histogram.h \
- include/io_histogram.h include/fileopen.h include/straux.h \
- include/rec_tools.h include/reconstruct.h include/user_analysis.h \
- include/warning.h include/camera_image.h include/basic_ntuple.h \
- include/io_trgmask.h include/eventio_version.h
-gen_lookup: src/gen_lookup.c include/initial.h include/io_basic.h \
- include/warning.h include/histogram.h include/io_histogram.h \
- include/fileopen.h
-extract_hess: src/extract_hess.c include/initial.h include/io_basic.h \
- include/warning.h include/mc_tel.h include/io_basic.h include/history.h \
- include/io_hess.h include/mc_tel.h include/histogram.h \
- include/io_histogram.h include/fileopen.h
-split_hessio: src/split_hessio.c include/initial.h include/io_basic.h \
- include/warning.h include/mc_tel.h include/io_basic.h include/history.h \
- include/io_hess.h include/mc_tel.h include/histogram.h \
- include/io_histogram.h include/fileopen.h include/straux.h \
- include/rec_tools.h include/warning.h include/camera_image.h
-gen_trgmask: src/gen_trgmask.c include/initial.h include/io_basic.h \
- include/warning.h include/fileopen.h include/io_trgmask.h
-check_trgmask: src/check_trgmask.c include/initial.h include/io_basic.h \
- include/warning.h include/fileopen.h include/io_trgmask.h
-merge_simtel: src/merge_simtel.c include/initial.h include/io_basic.h \
- include/warning.h include/mc_tel.h include/io_basic.h include/history.h \
- include/io_hess.h include/mc_tel.h include/histogram.h \
- include/io_histogram.h include/fileopen.h include/straux.h \
- include/warning.h include/io_trgmask.h
-fcat: src/fcat.c include/fileopen.h
-list_histograms: src/list_histograms.c include/initial.h \
- include/histogram.h include/io_basic.h include/warning.h \
- include/io_histogram.h include/fileopen.h
-add_histograms: src/add_histograms.c include/initial.h \
- include/histogram.h include/io_basic.h include/warning.h \
- include/io_histogram.h include/fileopen.h include/straux.h
-TestIO: src/TestIO.cc include/EventIO.hh include/io_basic.h \
- include/initial.h include/warning.h include/eventio_registry.h \
- include/fileopen.h
-statio: src/statio.cc include/EventIO.hh include/io_basic.h \
- include/initial.h include/warning.h include/eventio_registry.h \
- include/fileopen.h include/eventio_registry.h
-filterio: src/filterio.cc include/EventIO.hh include/io_basic.h \
- include/initial.h include/warning.h include/eventio_registry.h \
- include/fileopen.h include/hconfig.h include/eventio_registry.h
 out/add_histograms.o: src/add_histograms.c include/initial.h \
  include/histogram.h include/io_basic.h include/warning.h \
  include/io_histogram.h include/fileopen.h include/straux.h
@@ -108,7 +55,7 @@ out/merge_simtel.o: src/merge_simtel.c include/initial.h \
  include/io_basic.h include/warning.h include/mc_tel.h include/io_basic.h \
  include/history.h include/io_hess.h include/mc_tel.h include/histogram.h \
  include/io_histogram.h include/fileopen.h include/straux.h \
- include/warning.h include/io_trgmask.h
+ include/warning.h include/io_trgmask.h include/eventio_version.h
 out/moments.o: src/moments.c include/histogram.h include/initial.h
 out/read_hess.o: src/read_hess.c include/initial.h include/io_basic.h \
  include/warning.h include/mc_tel.h include/io_basic.h include/history.h \
@@ -122,12 +69,12 @@ out/read_hess_nr.o: src/read_hess_nr.c include/initial.h \
  include/history.h include/io_hess.h include/mc_tel.h include/histogram.h \
  include/io_histogram.h include/fileopen.h include/straux.h \
  include/rec_tools.h include/warning.h include/camera_image.h
-out/reconstruct.o: src/reconstruct.c include/initial.h include/io_hess.h \
- include/mc_tel.h include/io_basic.h include/warning.h \
- include/rec_tools.h include/reconstruct.h include/user_analysis.h
 out/rec_tools.o: src/rec_tools.c include/initial.h include/rec_tools.h \
  include/io_hess.h include/mc_tel.h include/io_basic.h include/warning.h
 out/rec_tools_nr.o: src/rec_tools_nr.c include/rec_tools.h
+out/reconstruct.o: src/reconstruct.c include/initial.h include/io_hess.h \
+ include/mc_tel.h include/io_basic.h include/warning.h \
+ include/rec_tools.h include/reconstruct.h include/user_analysis.h
 out/split_hessio.o: src/split_hessio.c include/initial.h \
  include/io_basic.h include/warning.h include/mc_tel.h include/io_basic.h \
  include/history.h include/io_hess.h include/mc_tel.h include/histogram.h \
@@ -143,17 +90,17 @@ out/user_analysis.o: src/user_analysis.c include/initial.h \
  include/reconstruct.h include/user_analysis.h include/atmprof.h \
  include/straux.h include/basic_ntuple.h
 out/warning.o: src/warning.c include/initial.h include/warning.h
-out/best_of.o: src/best_of.cc include/initial.h include/straux.h \
- include/fileopen.h
 out/EventIO.o: src/EventIO.cc include/fileopen.h include/EventIO.hh \
  include/io_basic.h include/initial.h include/warning.h \
  include/eventio_registry.h
-out/filterio.o: src/filterio.cc include/EventIO.hh include/io_basic.h \
- include/initial.h include/warning.h include/eventio_registry.h \
- include/fileopen.h include/hconfig.h include/eventio_registry.h
-out/statio.o: src/statio.cc include/EventIO.hh include/io_basic.h \
- include/initial.h include/warning.h include/eventio_registry.h \
- include/fileopen.h include/eventio_registry.h
-out/TestIO.o: src/TestIO.cc include/EventIO.hh include/io_basic.h \
- include/initial.h include/warning.h include/eventio_registry.h \
+out/TestIO.o: src/TestIO.cc include/fileopen.h include/EventIO.hh \
+ include/io_basic.h include/initial.h include/warning.h \
+ include/eventio_registry.h
+out/best_of.o: src/best_of.cc include/initial.h include/straux.h \
  include/fileopen.h
+out/filterio.o: src/filterio.cc include/fileopen.h include/hconfig.h \
+ include/initial.h include/io_basic.h include/warning.h \
+ include/EventIO.hh include/eventio_registry.h
+out/statio.o: src/statio.cc include/fileopen.h include/EventIO.hh \
+ include/io_basic.h include/initial.h include/warning.h \
+ include/eventio_registry.h

@@ -61,8 +61,8 @@
  *
  *  @author  Konrad Bernloehr 
  *  @date    Nov. 2000
- *  @date    @verbatim CVS $Date: 2015/05/05 11:50:06 $ @endverbatim 
- *  @version @verbatim CVS $Revision: 1.19 $ @endverbatim 
+ *  @date    @verbatim CVS $Date: 2015/07/15 19:47:47 $ @endverbatim 
+ *  @version @verbatim CVS $Revision: 1.20 $ @endverbatim 
  */
 
 #include "initial.h"
@@ -510,6 +510,7 @@ static FILE *cmp_popen (const char *fname, const char *mode, int compression)
    char *s;          /* Full fifo command with redirection */
    FILE *f = NULL;   /* File pointer returned */
    const char *pmd = "?";  /* Fifo mode ("w" or "r") */
+   const char *cs = "";
 
    int rc = 0;
 
@@ -615,6 +616,16 @@ static FILE *cmp_popen (const char *fname, const char *mode, int compression)
             case 6:
                cmd = "exec lz4 -d -c <";
                break;
+            case 7:
+               cmd = "exec tar zxOf - <";
+               break;
+            case 8:
+               cmd = "exec unzip -p ";
+               break;
+            case 9:
+               cmd = "exec tar xOf - <";
+               cs = " | zcat";
+               break;
          }
          break;
    }
@@ -625,13 +636,14 @@ static FILE *cmp_popen (const char *fname, const char *mode, int compression)
       return NULL;
    }
 
-   s = (char *) malloc(strlen(cmd)+strlen(fname)+3);
+   s = (char *) malloc(strlen(cmd)+strlen(fname)+strlen(cs)+3);
    if ( s == NULL )
       return NULL;
    strcpy(s,cmd);
    strcat(s,"'");
    strcat(s,fname);
    strcat(s,"'");
+   strcat(s,cs);
 
    f = popenx(s,pmd);
    if ( verbose )
@@ -687,6 +699,12 @@ static FILE *uri_popen (const char *fname, const char *mode, int compression)
          break;
       case 6:
          cmp_cmd = " | lz4 -d";
+         break;
+      case 7:
+         cmp_cmd = " | tar zxOf -";
+         break;
+      case 9:
+         cmp_cmd = " | tar xOf - | zcat";
          break;
    }
 
@@ -793,6 +811,15 @@ static FILE *ssh_popen (const char *fname, const char *mode, int compression)
       case 6:
          cmp_cmd = " | lz4 -d";
          break;
+      case 7:
+         cmp_cmd = " | tar zxOf -";
+         break;
+      case 8:
+         errno = ENOTSUP;
+         return NULL;
+      case 9:
+         cmp_cmd = " | tar xOf - | zcat";
+         break;
    }
 
    n = strlen(get_cmd)+strlen(fname)+strlen(cmp_cmd)+1;
@@ -871,8 +898,14 @@ FILE *fileopen (const char *fname, const char *mode)
       compression = 4;
    else if ( l > 3 && strcmp(fname+l-3,".xz") == 0 )
       compression = 5;
-   else if ( l > 4 && strcmp(fname+l-3,".lz4") == 0 )
+   else if ( l > 4 && strcmp(fname+l-4,".lz4") == 0 )
       compression = 6;
+   else if ( l > 7 && strcmp(fname+l-7,".tar.gz") == 0 )
+      compression = 7;
+   else if ( l > 4 && strcmp(fname+l-4,".zip") == 0 )
+      compression = 8;
+   else if ( l > 7 && strcmp(fname+l-7,".gz.tar") == 0 )
+      compression = 9;
 
    if ( strchr(fname,':') != NULL )
    {
@@ -939,6 +972,9 @@ FILE *fileopen (const char *fname, const char *mode)
          case 4: /* Create FIFO from lzma from file */
          case 5: /* Create FIFO from xz from file */
          case 6: /* Create FIFO from lz4 from file */
+         case 7: /* Create FIFO from tar unpacking uncompressed files from compressed tar package to stdout */
+         case 8: /* Create FIFO from zip unpacking uncompressed files from zip archive to stdout */
+         case 9: /* Create FIFO from tar unpacking compressed files from uncompressed tar package to stdout */
             return cmp_popen(fname,mode,compression);
             break;
 
@@ -999,6 +1035,9 @@ FILE *fileopen (const char *fname, const char *mode)
          case 4: /* Create FIFO from lzma from file */
          case 5: /* Create FIFO from xz from file */
          case 6: /* Create FIFO from lz4 from file */
+         case 7: /* Create FIFO from tar unpacking uncompressed files from compressed tar package to stdout */
+         case 8: /* Create FIFO from zip unpacking uncompressed files from zip archive to stdout */
+         case 9: /* Create FIFO from tar unpacking compressed files from uncompressed tar package to stdout */
             if ( (f = cmp_popen(try_fname,"r",compression)) != NULL )
                return f;
             break;

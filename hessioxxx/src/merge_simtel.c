@@ -1,6 +1,6 @@
 /* ============================================================================
 
-Copyright (C) 2013, 2014  Konrad Bernloehr
+Copyright (C) 2013, 2014, 2015  Konrad Bernloehr
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -68,8 +68,8 @@ Options:
 @endverbatim
  *
  *  @author  Konrad Bernloehr
- *  @date    @verbatim CVS $Date: 2014/06/25 15:34:16 $ @endverbatim
- *  @version @verbatim CVS $Revision: 1.4 $ @endverbatim
+ *  @date    @verbatim CVS $Date: 2015/05/31 13:02:40 $ @endverbatim
+ *  @version @verbatim CVS $Revision: 1.6 $ @endverbatim
  */
 
 /** @defgroup merge_simtel_c The merge_simtel program */
@@ -86,6 +86,7 @@ Options:
 #include "straux.h"
 #include "warning.h"
 #include "io_trgmask.h"
+#include "eventio_version.h"
 
 #ifndef _UNUSED_
 # ifdef __GNUC__
@@ -141,6 +142,20 @@ static void syntax (const char *program)
    printf("     --auto-trgmask  : Load trgmask.gz files for each input file where available.\n");
    printf("     --min-trg-tel n : Require at least n telescopes in merged event (default: 2).\n");
    printf("     --verbose       : Show events being merged.\n");
+   printf("\nCompiled for a maximum of %d telescopes before and after merging.\n", H_MAX_TEL);
+   printf("Linked against eventIO/hessio library\n");
+#ifdef EVENTIO_VERSION
+         printf("   version %s\n", EVENTIO_VERSION);
+#endif
+#ifdef EVENTIO_RELEASE
+         printf("   release %s\n", EVENTIO_RELEASE);
+#else
+# ifdef EVENTIO_BASE_RELEASE
+         printf("   based on release %s\n", EVENTIO_BASE_RELEASE);
+# endif
+#endif
+   show_hessio_max();
+   H_CHECK_MAX();
    exit(1);
 }
 
@@ -374,6 +389,7 @@ static struct trgmask_hash_set *ths[2] = { NULL, NULL };
 static int events[2] = { 0, 0 };
 static int mcshowers[2] = { 0, 0 };
 static int mcevents[2] = { 0, 0 };
+static int max_list = 999;
 
 /**
  *  Processing and merging of I/O blocks from the two input files,
@@ -391,6 +407,7 @@ int merge_data_from_io_block (IO_BUFFER *iobuf, IO_ITEM_HEADER *item_header,
    int tel_id, itel;
    int tel_id3, itel3;
    int rc = -9;
+   static int nlist = 0;
 
    if ( iobuf == NULL || item_header == NULL || hsdata == NULL || 
          hsdata_out == NULL || iobuf_out == NULL || ifile < 1 || ifile > 2 )
@@ -1261,8 +1278,12 @@ if ( ev_hess_event > 0 && ev_hess_event < item_header->ident )
          }
          ndt = evo->num_teldata = ndt;
          ev_hess_event = item_header->ident;
+if ( nlist < max_list || nlist%1000 ==0 )
 printf("Event data for event %ld from file %d: ntrg=%d, ndata=%d, ndt=%d\n",
    ev_hess_event, ifile, ntrg, ndata, ndt);
+else if ( nlist == max_list )
+   printf("...\n");
+nlist++;
       }
          break;
 
@@ -1843,6 +1864,8 @@ int main (int argc, char **argv)
    int prev_type1 = 0, prev_type2 = 0;
    int this_type1 = 0, this_type2 = 0;
    
+   H_CHECK_MAX();
+
    push_command_history(argc, argv);
 
    AllHessData *hsdata1 = calloc(1,sizeof(AllHessData)); /* First input */
@@ -1866,7 +1889,7 @@ int main (int argc, char **argv)
       syntax(prg);
    for (iarg=1; iarg<argc; iarg++)
    {
-      if ( argv[iarg][0] == '-' )
+      if ( argv[iarg][0] == '-' && argv[iarg][1] != '\0' )
       {
          if ( strcmp(argv[iarg],"--auto-trgmask") == 0 )
          {
@@ -1879,14 +1902,22 @@ int main (int argc, char **argv)
             verbose = 1;
 	    continue;
          }
-         else if ( strcmp(argv[iarg],"--min-trg-tel") == 2 && iarg+1<argc )
+         else if ( strcmp(argv[iarg],"--min-trg-tel") == 0 && iarg+1<argc )
          {
             min_trg = atoi(argv[iarg+1]);
             iarg++;
             continue;
          }
+         else if ( strcmp(argv[iarg],"--max-list") == 0 && iarg+1<argc )
+         {
+            max_list = atoi(argv[iarg+1]);
+            iarg++;
+            continue;
+         }
          else
          {
+            if ( strcmp(argv[iarg],"--help") != 0 && strcmp(argv[iarg],"--version") != 0 )
+               fprintf(stderr,"Syntax error at '%s'\n", argv[iarg]);
             syntax(program);
             continue;
          }
@@ -1903,7 +1934,14 @@ int main (int argc, char **argv)
          syntax(program);
       jarg++;
    }
-   
+
+   if ( strcmp(output_fname,"-") == 0 )
+   {
+      fprintf(stderr,"Output cannot be standard output ('-') because of interfering printf calls.\n");
+      fprintf(stderr,"A possible alternative solution may be an output pipe ('|command')\n");
+      exit(1);
+   }
+
    snprintf(hl,sizeof(hl),"Mapping file is %s\n", map_fname);
    push_config_history(hl,1);
    snprintf(hl,sizeof(hl),"Input file 1 is %s\n", input_fname1);

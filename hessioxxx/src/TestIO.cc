@@ -31,18 +31,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     the testio tool. Comparison of the files may serve as an additional test.
 
     @author  Konrad Bernloehr
-    $Date: 2014/08/04 13:05:28 $
-    $Revision: 1.24 $
+    $Date: 2014/11/17 15:44:00 $
+    $Revision: 1.25 $
 */
 
 /** @defgroup TestIO_cc The TestIO program */
 /** @{ */
 #define __STDC_LIMIT_MACROS 1
 #include <vector>
+#include <valarray>
+#include <string>
 using std::vector;
-#include "EventIO.hh"
 #include <iostream>
 #include "fileopen.h"
+#include "EventIO.hh"
 
 using namespace eventio;
 
@@ -482,7 +484,7 @@ int datacmp(TEST_DATA& data1, TEST_DATA& data2)
 
 int write_test1(TEST_DATA& data, EventIO& iobuf)
 {
-   Item item(iobuf,"put",99,0,123);
+   EventIO::Item item(iobuf,"put",99,0,123);
    if ( item.Status() != 0 )
       return item.Status();
    
@@ -540,7 +542,7 @@ int write_test1(TEST_DATA& data, EventIO& iobuf)
    item.PutUint16(strlen(data.str16var));
    for (i=0; i<strlen(data.str16var); i++)
       item.PutUint8(data.str16var[i]);
-   item.PutUint32(strlen(data.str32var));
+   item.PutUint32((uint32_t)strlen(data.str32var));
    for (i=0; i<strlen(data.str32var); i++)
       item.PutUint8(data.str32var[i]);
    item.PutString(data.strvvar);
@@ -562,7 +564,7 @@ int write_test1(TEST_DATA& data, EventIO& iobuf)
 
 int read_test1(TEST_DATA& data, EventIO& iobuf)
 {
-   Item item(iobuf,"get",99);
+   EventIO::Item item(iobuf,"get",99);
    if ( item.Status() < 0 )
    {
       Warning("Missing or invalid test data block.");
@@ -651,7 +653,7 @@ int read_test1(TEST_DATA& data, EventIO& iobuf)
 
 int write_test2(TEST_DATA& data, EventIO& iobuf)
 {
-   Item item(iobuf,"put",99,0,123);
+   EventIO::Item item(iobuf,"put",99,0,123);
    if ( item.Status() != 0 )
       return item.Status();
    
@@ -684,7 +686,7 @@ int write_test2(TEST_DATA& data, EventIO& iobuf)
    item.PutSCount(data.scntvar,14);
    item.PutUint16(strlen(data.str16var));
    item.PutUint8((uint8_t *)data.str16var,strlen(data.str16var));
-   item.PutUint32(strlen(data.str32var));
+   item.PutUint32((uint32_t)strlen(data.str32var));
    item.PutUint8((uint8_t *)data.str32var,strlen(data.str32var));
    item.PutString(data.strvvar);
    
@@ -705,7 +707,7 @@ int write_test2(TEST_DATA& data, EventIO& iobuf)
 
 int read_test2(TEST_DATA& data, EventIO& iobuf)
 {
-   Item item(iobuf,"get",99);
+   EventIO::Item item(iobuf,"get",99);
    if ( item.Status() < 0 )
    {
       Warning("Missing or invalid test data block.");
@@ -771,11 +773,11 @@ int read_test2(TEST_DATA& data, EventIO& iobuf)
 
 int write_test3(TEST_DATA& data, EventIO& iobuf)
 {
-   Item item1(iobuf,"put",990,11,1);
+   EventIO::Item item1(iobuf,"put",990,11,1);
    if ( item1.Status() != 0 )
       return item1.Status();
 
-   Item item2(item1,"put",991,12,1);
+   EventIO::Item item2(item1,"put",991,12,1);
    if ( item2.Status() != 0 )
       return item2.Status();
 
@@ -787,7 +789,7 @@ int write_test3(TEST_DATA& data, EventIO& iobuf)
    
    item2.Done();
 
-   Item item3(item1,"put",992,12,2);
+   EventIO::Item item3(item1,"put",992,12,2);
    if ( item3.Status() != 0 )
       return item3.Status();
 
@@ -807,7 +809,7 @@ int write_test3(TEST_DATA& data, EventIO& iobuf)
 
    item3.Done();
 
-   Item item4(item1,"put",993,12,3);
+   EventIO::Item item4(item1,"put",993,12,3);
    if ( item4.Status() != 0 )
       return item4.Status();
 
@@ -823,13 +825,13 @@ int write_test3(TEST_DATA& data, EventIO& iobuf)
 
    item4.Done();
 
-   Item item5(item1,"put",994,12,4);
+   EventIO::Item item5(item1,"put",994,12,4);
    if ( item5.Status() != 0 )
       return item5.Status();
 
    item5.PutUint16(strlen(data.str16var));
    item5.PutUint8((uint8_t *)data.str16var,strlen(data.str16var));
-   item5.PutUint32(strlen(data.str32var));
+   item5.PutUint32((uint32_t)strlen(data.str32var));
    item5.PutUint8((uint8_t *)data.str32var,strlen(data.str32var));
    item5.PutString(data.strvvar);
 
@@ -852,14 +854,14 @@ int write_test3(TEST_DATA& data, EventIO& iobuf)
 
 int read_test3(TEST_DATA& data, EventIO& iobuf)
 {
-   Item item1(iobuf,"get",990);
+   EventIO::Item item1(iobuf,"get",990);
    if ( item1.Status() < 0 )
    {
       Warning("Missing or invalid test data block.");
       return -4;
    }
 
-   Item item2(item1,"get",991);
+   EventIO::Item item2(item1,"get",991);
    if ( item2.Status() < 0 )
    {
       Warning("Missing or invalid test data sub-block 1.");
@@ -880,7 +882,7 @@ int read_test3(TEST_DATA& data, EventIO& iobuf)
       return -4;
    }
 
-   Item item3(item1,"get",992);
+   EventIO::Item item3(item1,"get",992);
    if ( item3.Status() < 0 )
    {
       Warning("Missing or invalid test data sub-block 2.");
@@ -913,7 +915,7 @@ int read_test3(TEST_DATA& data, EventIO& iobuf)
       return -4;
    }
 
-   Item item5(item1,"get",994);
+   EventIO::Item item5(item1,"get",994);
    if ( item5.Status() < 0 )
    {
       Warning("Missing or invalid test data sub-block 4.");
@@ -945,7 +947,7 @@ int read_test3(TEST_DATA& data, EventIO& iobuf)
       return -4;
    }
 
-   Item item4(item1,"get",993);
+   EventIO::Item item4(item1,"get",993);
    if ( item4.Status() < 0 )
    {
       Warning("Missing or invalid test data sub-block 3.");
@@ -972,7 +974,7 @@ int write_test_ex(EventIO& iobuf)
 {
    std::cerr << "Expecting an exception for PutUint16(99999) ...\n";
    
-   Item item(iobuf,"put",99,0,123);
+   EventIO::Item item(iobuf,"put",99,0,123);
    if ( item.Status() != 0 )
       return item.Status();
    

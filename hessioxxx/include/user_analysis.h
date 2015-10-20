@@ -88,9 +88,20 @@ struct user_parameters
 
       /** Integration-scheme- and gain-specific floating-point parameters. */
       double d_integ_param[2][4];
-      
+
       /** Calibration scale from mean-p.e. units to experimental units (0.0: like HESS). */
       double calib_scale;
+
+      /** Radii for initial neighbour pixel search */
+      double r_nb[3]; /**< Maximum search radii for neighbours [pixel diameter] */
+      double r_ne; /**< Radius for extending significant pixels in image cleaning [pixel diameter] */
+      
+      /* Ranges for reconstructed impact position in array (global). */
+      double impact_range[3]; /**< [0]: maximum distance of array center from shower axis, [1],[2]: max. |x|,|y| of core in ground plane. */
+      /* Ranges for true impact position in array (global). */
+      double true_impact_range[3]; /**< As for impact_ranhe */
+      /* Maximum core distance of telescopes used in analysis after geometric reconstruction. */
+      double max_core_distance;
    } d;
 };
 typedef struct user_parameters UserParameters;
@@ -108,6 +119,9 @@ int which_telescope_type (const struct hess_camera_settings_struct *cam_set);
 int user_get_type (int itel);
 
 void user_set_spectrum(double di);
+void user_set_impact_range (double *impact_range);
+void user_set_true_impact_range (double *true_impact_range);
+void user_set_max_core_distance (double rt);
 void user_set_min_amp(double a);
 void user_set_tail_cuts(double tcl, double tch, int lref, double minfrac);
 void user_set_min_pix(int mpx);
@@ -134,6 +148,8 @@ void user_set_integ_threshold(int ithg, int itlg);
 void user_set_trg_req(int trg_req);
 void user_set_integ_no_rescale (int no);
 void user_set_calib_scale (double s);
+void user_set_nb_radius (double *r);
+void user_set_nxt_radius (double r);
 int user_selected_event(void);
 int do_user_ana (AllHessData *hsdata, unsigned long item_type, int stage);
 

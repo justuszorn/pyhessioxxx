@@ -38,11 +38,10 @@ Options:
 #define __STDC_LIMIT_MACROS 1
 #include <map>
 using std::map;
-#include "EventIO.hh"
 #include <iostream>
 #include <string>
-#include <fileopen.h>
-#include <eventio_registry.h>
+#include "fileopen.h"
+#include "EventIO.hh"
 
 using namespace eventio;
 using std::string;

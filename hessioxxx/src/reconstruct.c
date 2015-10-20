@@ -20,8 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /** @file reconstruct.c
  *  @short Second moments type image analysis.
  *
- *  @date    @verbatim CVS $Revision: 1.55 $ @endverbatim
- *  @version @verbatim CVS $Date: 2014/09/02 15:54:33 $ @endverbatim
+ *  @date    @verbatim CVS $Revision: 1.58 $ @endverbatim
+ *  @version @verbatim CVS $Date: 2015/05/27 11:36:48 $ @endverbatim
  */
 
 #include "initial.h"      /* This file includes others as required. */

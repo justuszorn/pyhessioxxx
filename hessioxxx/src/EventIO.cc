@@ -24,8 +24,8 @@
     
     @author  Konrad Bernloehr
     @date Initial release: April 2003
-    $Date: 2014/05/30 15:31:44 $
-    $Revision: 1.32 $
+    $Date: 2014/11/17 15:44:00 $
+    $Revision: 1.33 $
 */
 
 #include <string>
@@ -113,7 +113,7 @@ EventIO::~EventIO (void)
       // Tell the toplevel Item and all of its descendants that it is done.
       toplevel->Done();
       // Even though the Item objects may persist, they have no buffer any more.
-      for (Item *next=toplevel; next!=0; next=next->child)
+      for (EventIO::Item *next=toplevel; next!=0; next=next->child)
          next->iobuf = 0;
    }
    toplevel = 0;
@@ -354,14 +354,14 @@ int EventIO::Append(const EventIO& ev2)
 
 /// Copy a sub-item to another I/O buffer as top-level item.
 
-int EventIO::Copy(const Item& item)
+int EventIO::Copy(const EventIO::Item& item)
 {
    if ( iobuf == 0 || item.iobuf == 0 )
       return -1;
    return copy_item_to_io_block (iobuf,item.iobuf,&item.item_header);
 }
 
-// ===================== Item methods ===========================
+// ===================== EventIO::Item methods ===========================
 
 /// Item constuctor for toplevel item takes the EventIO buffer as first argument.
 ///
@@ -372,7 +372,7 @@ int EventIO::Copy(const Item& item)
 /// c) "append" for appending to an I/O buffer at its current position.
 ///    If the I/O buffer has nothing active, this is identical to "put".
 
-Item::Item (EventIO &ev, 
+EventIO::Item::Item (EventIO &ev, 
    const char *method, size_t type, size_t version, long ident, 
       bool user_flag, bool extended) :
    iobuf(ev.Buffer()), rc(-1), 
@@ -392,7 +392,7 @@ Item::Item (EventIO &ev,
       }
       else
       {
-         Item *parent = ev.toplevel;
+         EventIO::Item *parent = ev.toplevel;
          while ( parent->child != 0 && !parent->child->done )
             parent = parent->child;
          parent->child = this;
@@ -454,7 +454,7 @@ Item::Item (EventIO &ev,
 /// b) "put" for writing to an I/O level at the level of the parent,
 ///    after any active children are finished.
 
-Item::Item (Item &parent, 
+EventIO::Item::Item (EventIO::Item &parent, 
    const char *method, size_t type, size_t version, long ident, 
    bool user_flag, bool extended) :
    iobuf(parent.Buffer()), rc(-1), 
@@ -499,7 +499,7 @@ Item::Item (Item &parent,
 /// sooner or later may result in corrupted data, in particular when
 /// multi-threaded programs try to write to the same file.
 
-Item::Item (const Item& eventio) :
+EventIO::Item::Item (const EventIO::Item& eventio) :
    iobuf(0), rc(-1), 
    put_flag(false), throw_on_error(false), 
    done(false), active(false),
@@ -510,13 +510,13 @@ Item::Item (const Item& eventio) :
 
 /// Restrictions to the copy constructor also apply to the assignment operator
 
-Item& Item::operator= (const Item& item /* unused */ )
+EventIO::Item& EventIO::Item::operator= (const EventIO::Item& item /* unused */ )
 { throw std::logic_error(std::string("I/O items should not be copied.\n")); return *this; }
 
 /// Item destructor takes care that all sub-items are finished first.
 /// In case of a toplevel item, it unregisters from the EventIO buffer.
 
-Item::~Item (void)
+EventIO::Item::~Item (void)
 {
    // fprintf(stderr,"Delete header for item type %lu\n",item_header.type);
    Done();
@@ -528,7 +528,7 @@ Item::~Item (void)
 
 /// All put/get operations for this item and all sub-items are done.
 
-int Item::Done (void)
+int EventIO::Item::Done (void)
 {
    if ( done || !active )
       return 1;
@@ -574,7 +574,7 @@ int Item::Done (void)
 ///         -2 (no such sub-item),
 ///         -3 (cannot skip sub-items).
 
-int Item::Search (size_t sub)
+int EventIO::Item::Search (size_t sub)
 {
    IO_ITEM_HEADER sub_item_header;
    sub_item_header.type = sub;
@@ -589,7 +589,7 @@ int Item::Search (size_t sub)
 ///
 ///  @return  0 (ok), -1 (error)
 
-int Item::Rewind ()
+int EventIO::Item::Rewind ()
 {
    if ( iobuf == 0 )
       return rc = -1;
@@ -604,7 +604,7 @@ int Item::Rewind ()
 ///
 ///  @return  0 (ok), -1 (error)
 
-int Item::Skip ()
+int EventIO::Item::Skip ()
 {
    if ( iobuf == 0 )
       return rc = -1;
@@ -616,7 +616,7 @@ int Item::Skip ()
 ///
 ///  @return  0 (ok), -1 (error)
 
-int Item::Unget ()
+int EventIO::Item::Unget ()
 {
    child = 0; // Children get irrelevant.
    done = true; // A subsequent Done() call or destructor has nothing to do.
@@ -630,7 +630,7 @@ int Item::Unget ()
 ///
 ///  @return  0 (ok), -1 (error)
 
-int Item::Unput ()
+int EventIO::Item::Unput ()
 {
    child = 0; // Children get irrelevant.
    done = true; // A subsequent Done() call or destructor has nothing to do.
@@ -643,7 +643,7 @@ int Item::Unput ()
 ///
 /// @return  >= 0 (O.k., sub-item type),  -1 (error), -2 (end-of-buffer), -3 (no buffer)
 
-int Item::NextSubItemType(void) const
+int EventIO::Item::NextSubItemType(void) const
 {
    if ( iobuf != 0 )
       return next_subitem_type(iobuf);
@@ -655,7 +655,7 @@ int Item::NextSubItemType(void) const
 ///
 /// @return  >= 0 (O.k., sub-item length),  -1 (error), -2 (end-of-buffer), -3 (no buffer)
 
-size_t Item::NextSubItemLength(void) const
+size_t EventIO::Item::NextSubItemLength(void) const
 {
    if ( iobuf != 0 )
       return next_subitem_length(iobuf);
@@ -667,7 +667,7 @@ size_t Item::NextSubItemLength(void) const
 ///
 /// @return  >= 0 (O.k., sub-item ident),  -1 (error), -2 (end-of-buffer), -3 (no buffer)
 
-long Item::NextSubItemIdent(void) const
+long EventIO::Item::NextSubItemIdent(void) const
 {
    if ( iobuf != 0 )
       return next_subitem_ident(iobuf);
@@ -677,21 +677,21 @@ long Item::NextSubItemIdent(void) const
 
 /// Show I/O block information to standard output
 
-int Item::List(int maxlevel, int verbosity)
+int EventIO::Item::List(int maxlevel, int verbosity)
 {
    return list_sub_items(iobuf, &item_header, maxlevel, verbosity);
 }
 
 /// Access to the registered name for this type of I/O block, if available
 
-const char *Item::TypeName()
+const char *EventIO::Item::TypeName()
 {
    return eventio_registered_typename(item_header.type);
 }
 
 /// Access to the registered description for this type of I/O block, if available
 
-const char *Item::Description()
+const char *EventIO::Item::Description()
 {
    return eventio_registered_description(item_header.type);
 }
@@ -700,7 +700,7 @@ const char *Item::Description()
 
 /// Get operations for bytes (only unsigned flavour implemented).
 
-void Item::GetUint8(std::vector<uint8_t>& vec, size_t num)
+void EventIO::Item::GetUint8(std::vector<uint8_t>& vec, size_t num)
 {
    check_throw("GetUint8");
 
@@ -713,7 +713,7 @@ void Item::GetUint8(std::vector<uint8_t>& vec, size_t num)
 
 /// Get operations for bytes (only unsigned flavour implemented).
 
-void Item::GetUint8(std::vector<uint8_t>& vec)
+void EventIO::Item::GetUint8(std::vector<uint8_t>& vec)
 {
    check_throw("GetUint8");
 
@@ -727,7 +727,7 @@ void Item::GetUint8(std::vector<uint8_t>& vec)
 
 /// Get operations for bytes (only unsigned flavour implemented).
 
-void Item::GetUint8(std::valarray<uint8_t>& vec, size_t num)
+void EventIO::Item::GetUint8(std::valarray<uint8_t>& vec, size_t num)
 {
    check_throw("GetUint8");
 
@@ -740,7 +740,7 @@ void Item::GetUint8(std::valarray<uint8_t>& vec, size_t num)
 
 /// Get operations for bytes (only unsigned flavour implemented).
 
-void Item::GetUint8(std::valarray<uint8_t>& vec)
+void EventIO::Item::GetUint8(std::valarray<uint8_t>& vec)
 {
    check_throw("GetUint8");
 
@@ -754,7 +754,7 @@ void Item::GetUint8(std::valarray<uint8_t>& vec)
 
 /// Get operations for bools.
 
-void Item::GetBool(std::vector<bool>& vec, size_t num)
+void EventIO::Item::GetBool(std::vector<bool>& vec, size_t num)
 {
    check_throw("GetBool");
 
@@ -779,7 +779,7 @@ void Item::GetBool(std::vector<bool>& vec, size_t num)
 
 /// Get operations for bools.
 
-void Item::GetBool(std::vector<bool>& vec)
+void EventIO::Item::GetBool(std::vector<bool>& vec)
 {
    check_throw("GetBool");
 
@@ -805,7 +805,7 @@ void Item::GetBool(std::vector<bool>& vec)
 
 /// Get operations for bools.
 
-void Item::GetBool(std::valarray<bool>& vec, size_t num)
+void EventIO::Item::GetBool(std::valarray<bool>& vec, size_t num)
 {
    check_throw("GetBool");
 
@@ -830,7 +830,7 @@ void Item::GetBool(std::valarray<bool>& vec, size_t num)
 
 /// Get operations for bools.
 
-void Item::GetBool(std::valarray<bool>& vec)
+void EventIO::Item::GetBool(std::valarray<bool>& vec)
 {
    check_throw("GetBool");
 
@@ -856,7 +856,7 @@ void Item::GetBool(std::valarray<bool>& vec)
 
 /// Get operations for counts (16 bit variant)
 
-void Item::GetCount(uint16_t *vec, size_t num)
+void EventIO::Item::GetCount(uint16_t *vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -868,7 +868,7 @@ void Item::GetCount(uint16_t *vec, size_t num)
 
 /// Get operations for counts (32 bit variant)
 
-void Item::GetCount(uint32_t *vec, size_t num)
+void EventIO::Item::GetCount(uint32_t *vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -880,7 +880,7 @@ void Item::GetCount(uint32_t *vec, size_t num)
 
 /// Get operations for counts
 
-void Item::GetCount(size_t *vec, size_t num)
+void EventIO::Item::GetCount(size_t *vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -891,7 +891,7 @@ void Item::GetCount(size_t *vec, size_t num)
 /// Get operations for counts
 
 #if defined(WITH_UINTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetCount(uintmax_t *vec, size_t num)
+void EventIO::Item::GetCount(uintmax_t *vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -902,7 +902,7 @@ void Item::GetCount(uintmax_t *vec, size_t num)
 
 /// Get operations for counts (16 bit variant).
 
-void Item::GetCount(std::vector<uint16_t>& vec, size_t num)
+void EventIO::Item::GetCount(std::vector<uint16_t>& vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -917,7 +917,7 @@ void Item::GetCount(std::vector<uint16_t>& vec, size_t num)
 
 /// Get operations for counts (32 bit variant).
 
-void Item::GetCount(std::vector<uint32_t>& vec, size_t num)
+void EventIO::Item::GetCount(std::vector<uint32_t>& vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -931,7 +931,7 @@ void Item::GetCount(std::vector<uint32_t>& vec, size_t num)
 
 /// Get operations for counts.
 
-void Item::GetCount(std::vector<size_t>& vec, size_t num)
+void EventIO::Item::GetCount(std::vector<size_t>& vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -945,7 +945,7 @@ void Item::GetCount(std::vector<size_t>& vec, size_t num)
 /// Get operations for counts.
 
 #if defined(WITH_UINTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetCount(std::vector<uintmax_t>& vec, size_t num)
+void EventIO::Item::GetCount(std::vector<uintmax_t>& vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -960,7 +960,7 @@ void Item::GetCount(std::vector<uintmax_t>& vec, size_t num)
 
 /// Get operations for counts (16 bit variant).
 
-void Item::GetCount(std::vector<uint16_t>& vec)
+void EventIO::Item::GetCount(std::vector<uint16_t>& vec)
 {
    check_throw("GetCount");
 
@@ -976,7 +976,7 @@ void Item::GetCount(std::vector<uint16_t>& vec)
 
 /// Get operations for counts (32 bit variant).
 
-void Item::GetCount(std::vector<uint32_t>& vec)
+void EventIO::Item::GetCount(std::vector<uint32_t>& vec)
 {
    check_throw("GetCount");
 
@@ -992,7 +992,7 @@ void Item::GetCount(std::vector<uint32_t>& vec)
 
 /// Get operations for counts.
 
-void Item::GetCount(std::vector<size_t>& vec)
+void EventIO::Item::GetCount(std::vector<size_t>& vec)
 {
    check_throw("GetCount");
 
@@ -1007,7 +1007,7 @@ void Item::GetCount(std::vector<size_t>& vec)
 /// Get operations for counts.
 
 #if defined(WITH_UINTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetCount(std::vector<uintmax_t>& vec)
+void EventIO::Item::GetCount(std::vector<uintmax_t>& vec)
 {
    check_throw("GetCount");
 
@@ -1022,7 +1022,7 @@ void Item::GetCount(std::vector<uintmax_t>& vec)
 
 /// Get operations for counts (16 bit variant).
 
-void Item::GetCount(std::valarray<uint16_t>& vec, size_t num)
+void EventIO::Item::GetCount(std::valarray<uint16_t>& vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -1037,7 +1037,7 @@ void Item::GetCount(std::valarray<uint16_t>& vec, size_t num)
 
 /// Get operations for counts (32 bit variant).
 
-void Item::GetCount(std::valarray<uint32_t>& vec, size_t num)
+void EventIO::Item::GetCount(std::valarray<uint32_t>& vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -1052,7 +1052,7 @@ void Item::GetCount(std::valarray<uint32_t>& vec, size_t num)
 
 /// Get operations for counts.
 
-void Item::GetCount(std::valarray<size_t>& vec, size_t num)
+void EventIO::Item::GetCount(std::valarray<size_t>& vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -1066,7 +1066,7 @@ void Item::GetCount(std::valarray<size_t>& vec, size_t num)
 /// Get operations for counts.
 
 #if defined(WITH_UINTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetCount(std::valarray<uintmax_t>& vec, size_t num)
+void EventIO::Item::GetCount(std::valarray<uintmax_t>& vec, size_t num)
 {
    check_throw("GetCount");
 
@@ -1080,7 +1080,7 @@ void Item::GetCount(std::valarray<uintmax_t>& vec, size_t num)
 
 /// Get operations for counts (16 bit variant).
 
-void Item::GetCount(std::valarray<uint16_t>& vec)
+void EventIO::Item::GetCount(std::valarray<uint16_t>& vec)
 {
    check_throw("GetCount");
 
@@ -1096,7 +1096,7 @@ void Item::GetCount(std::valarray<uint16_t>& vec)
 
 /// Get operations for counts (32 bit variant).
 
-void Item::GetCount(std::valarray<uint32_t>& vec)
+void EventIO::Item::GetCount(std::valarray<uint32_t>& vec)
 {
    check_throw("GetCount");
 
@@ -1112,7 +1112,7 @@ void Item::GetCount(std::valarray<uint32_t>& vec)
 
 /// Get operations for counts.
 
-void Item::GetCount(std::valarray<size_t>& vec)
+void EventIO::Item::GetCount(std::valarray<size_t>& vec)
 {
    check_throw("GetCount");
 
@@ -1127,7 +1127,7 @@ void Item::GetCount(std::valarray<size_t>& vec)
 /// Get operations for counts.
 
 #if defined(WITH_UINTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetCount(std::valarray<uintmax_t>& vec)
+void EventIO::Item::GetCount(std::valarray<uintmax_t>& vec)
 {
    check_throw("GetCount");
 
@@ -1142,7 +1142,7 @@ void Item::GetCount(std::valarray<uintmax_t>& vec)
 
 /// Get operations for signed counts (16 bit variant)
 
-void Item::GetSCount(int16_t *vec, size_t num)
+void EventIO::Item::GetSCount(int16_t *vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1150,7 +1150,7 @@ void Item::GetSCount(int16_t *vec, size_t num)
       vec[i] = GetSCount16();
 }
 
-void Item::GetDiffSCount(int16_t *vec, size_t num)
+void EventIO::Item::GetDiffSCount(int16_t *vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1165,7 +1165,7 @@ void Item::GetDiffSCount(int16_t *vec, size_t num)
 
 /// Get operations for signed counts (32 bit variant)
 
-void Item::GetSCount(int32_t *vec, size_t num)
+void EventIO::Item::GetSCount(int32_t *vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1173,7 +1173,7 @@ void Item::GetSCount(int32_t *vec, size_t num)
       vec[i] = GetSCount32();
 }
 
-void Item::GetDiffSCount(int32_t *vec, size_t num)
+void EventIO::Item::GetDiffSCount(int32_t *vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1188,7 +1188,7 @@ void Item::GetDiffSCount(int32_t *vec, size_t num)
 
 /// Get operations for signed counts
 
-void Item::GetSCount(ssize_t *vec, size_t num)
+void EventIO::Item::GetSCount(ssize_t *vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1196,7 +1196,7 @@ void Item::GetSCount(ssize_t *vec, size_t num)
       vec[i] = ssize_t(GetSCount());
 }
 
-void Item::GetDiffSCount(ssize_t *vec, size_t num)
+void EventIO::Item::GetDiffSCount(ssize_t *vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1210,7 +1210,7 @@ void Item::GetDiffSCount(ssize_t *vec, size_t num)
 /// Get operations for signed counts
 
 #if defined(WITH_INTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetSCount(intmax_t *vec, size_t num)
+void EventIO::Item::GetSCount(intmax_t *vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1218,7 +1218,7 @@ void Item::GetSCount(intmax_t *vec, size_t num)
       vec[i] = GetSCount();
 }
 
-void Item::GetDiffSCount(intmax_t *vec, size_t num)
+void EventIO::Item::GetDiffSCount(intmax_t *vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1232,7 +1232,7 @@ void Item::GetDiffSCount(intmax_t *vec, size_t num)
 
 /// Get operations for signed counts (16 bit variant).
 
-void Item::GetSCount(std::vector<int16_t>& vec, size_t num)
+void EventIO::Item::GetSCount(std::vector<int16_t>& vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1243,7 +1243,7 @@ void Item::GetSCount(std::vector<int16_t>& vec, size_t num)
       vec[i] = GetSCount16();
 }
 
-void Item::GetDiffSCount(std::vector<int16_t>& vec, size_t num)
+void EventIO::Item::GetDiffSCount(std::vector<int16_t>& vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1261,7 +1261,7 @@ void Item::GetDiffSCount(std::vector<int16_t>& vec, size_t num)
 
 /// Get operations for signed counts (32 bit variant).
 
-void Item::GetSCount(std::vector<int32_t>& vec, size_t num)
+void EventIO::Item::GetSCount(std::vector<int32_t>& vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1272,7 +1272,7 @@ void Item::GetSCount(std::vector<int32_t>& vec, size_t num)
       vec[i] = GetSCount32();
 }
 
-void Item::GetDiffSCount(std::vector<int32_t>& vec, size_t num)
+void EventIO::Item::GetDiffSCount(std::vector<int32_t>& vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1290,7 +1290,7 @@ void Item::GetDiffSCount(std::vector<int32_t>& vec, size_t num)
 
 /// Get operations for signed counts.
 
-void Item::GetSCount(std::vector<ssize_t>& vec, size_t num)
+void EventIO::Item::GetSCount(std::vector<ssize_t>& vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1301,7 +1301,7 @@ void Item::GetSCount(std::vector<ssize_t>& vec, size_t num)
       vec[i] = ssize_t(GetSCount());
 }
 
-void Item::GetDiffSCount(std::vector<ssize_t>& vec, size_t num)
+void EventIO::Item::GetDiffSCount(std::vector<ssize_t>& vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1318,7 +1318,7 @@ void Item::GetDiffSCount(std::vector<ssize_t>& vec, size_t num)
 /// Get operations for signed counts.
 
 #if defined(WITH_INTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetSCount(std::vector<intmax_t>& vec, size_t num)
+void EventIO::Item::GetSCount(std::vector<intmax_t>& vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1329,7 +1329,7 @@ void Item::GetSCount(std::vector<intmax_t>& vec, size_t num)
       vec[i] = GetSCount();
 }
 
-void Item::GetDiffSCount(std::vector<intmax_t>& vec, size_t num)
+void EventIO::Item::GetDiffSCount(std::vector<intmax_t>& vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1346,7 +1346,7 @@ void Item::GetDiffSCount(std::vector<intmax_t>& vec, size_t num)
 
 /// Get operations for signed counts (16 bit variant).
 
-void Item::GetSCount(std::vector<int16_t>& vec)
+void EventIO::Item::GetSCount(std::vector<int16_t>& vec)
 {
    check_throw("GetSCount");
 
@@ -1358,7 +1358,7 @@ void Item::GetSCount(std::vector<int16_t>& vec)
       vec[i] = GetSCount16();
 }
 
-void Item::GetDiffSCount(std::vector<int16_t>& vec)
+void EventIO::Item::GetDiffSCount(std::vector<int16_t>& vec)
 {
    check_throw("GetDiffSCount");
 
@@ -1377,7 +1377,7 @@ void Item::GetDiffSCount(std::vector<int16_t>& vec)
 
 /// Get operations for signed counts (32 bit variant).
 
-void Item::GetSCount(std::vector<int32_t>& vec)
+void EventIO::Item::GetSCount(std::vector<int32_t>& vec)
 {
    check_throw("GetSCount");
 
@@ -1389,7 +1389,7 @@ void Item::GetSCount(std::vector<int32_t>& vec)
       vec[i] = GetSCount32();
 }
 
-void Item::GetDiffSCount(std::vector<int32_t>& vec)
+void EventIO::Item::GetDiffSCount(std::vector<int32_t>& vec)
 {
    check_throw("GetDiffSCount");
 
@@ -1408,7 +1408,7 @@ void Item::GetDiffSCount(std::vector<int32_t>& vec)
 
 /// Get operations for signed counts.
 
-void Item::GetSCount(std::vector<ssize_t>& vec)
+void EventIO::Item::GetSCount(std::vector<ssize_t>& vec)
 {
    check_throw("GetSCount");
 
@@ -1420,7 +1420,7 @@ void Item::GetSCount(std::vector<ssize_t>& vec)
       vec[i] = ssize_t(GetSCount());
 }
 
-void Item::GetDiffSCount(std::vector<ssize_t>& vec)
+void EventIO::Item::GetDiffSCount(std::vector<ssize_t>& vec)
 {
    check_throw("GetDiffSCount");
 
@@ -1438,7 +1438,7 @@ void Item::GetDiffSCount(std::vector<ssize_t>& vec)
 /// Get operations for signed counts.
 
 #if defined(WITH_INTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetSCount(std::vector<intmax_t>& vec)
+void EventIO::Item::GetSCount(std::vector<intmax_t>& vec)
 {
    check_throw("GetSCount");
 
@@ -1450,7 +1450,7 @@ void Item::GetSCount(std::vector<intmax_t>& vec)
       vec[i] = GetSCount();
 }
 
-void Item::GetDiffSCount(std::vector<intmax_t>& vec)
+void EventIO::Item::GetDiffSCount(std::vector<intmax_t>& vec)
 {
    check_throw("GetDiffSCount");
 
@@ -1468,7 +1468,7 @@ void Item::GetDiffSCount(std::vector<intmax_t>& vec)
 
 /// Get operations for signed counts (16 bit variant).
 
-void Item::GetSCount(std::valarray<int16_t>& vec, size_t num)
+void EventIO::Item::GetSCount(std::valarray<int16_t>& vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1479,7 +1479,7 @@ void Item::GetSCount(std::valarray<int16_t>& vec, size_t num)
       vec[i] = GetSCount16();
 }
 
-void Item::GetDiffSCount(std::valarray<int16_t>& vec, size_t num)
+void EventIO::Item::GetDiffSCount(std::valarray<int16_t>& vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1497,7 +1497,7 @@ void Item::GetDiffSCount(std::valarray<int16_t>& vec, size_t num)
 
 /// Get operations for signed counts (32 bit variant).
 
-void Item::GetSCount(std::valarray<int32_t>& vec, size_t num)
+void EventIO::Item::GetSCount(std::valarray<int32_t>& vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1508,7 +1508,7 @@ void Item::GetSCount(std::valarray<int32_t>& vec, size_t num)
       vec[i] = GetSCount32();
 }
 
-void Item::GetDiffSCount(std::valarray<int32_t>& vec, size_t num)
+void EventIO::Item::GetDiffSCount(std::valarray<int32_t>& vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1526,7 +1526,7 @@ void Item::GetDiffSCount(std::valarray<int32_t>& vec, size_t num)
 
 /// Get operations for signed counts.
 
-void Item::GetSCount(std::valarray<ssize_t>& vec, size_t num)
+void EventIO::Item::GetSCount(std::valarray<ssize_t>& vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1537,7 +1537,7 @@ void Item::GetSCount(std::valarray<ssize_t>& vec, size_t num)
       vec[i] = ssize_t(GetSCount());
 }
 
-void Item::GetDiffSCount(std::valarray<ssize_t>& vec, size_t num)
+void EventIO::Item::GetDiffSCount(std::valarray<ssize_t>& vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1554,7 +1554,7 @@ void Item::GetDiffSCount(std::valarray<ssize_t>& vec, size_t num)
 /// Get operations for signed counts.
 
 #if defined(WITH_INTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetSCount(std::valarray<intmax_t>& vec, size_t num)
+void EventIO::Item::GetSCount(std::valarray<intmax_t>& vec, size_t num)
 {
    check_throw("GetSCount");
 
@@ -1565,7 +1565,7 @@ void Item::GetSCount(std::valarray<intmax_t>& vec, size_t num)
       vec[i] = GetSCount();
 }
 
-void Item::GetDiffSCount(std::valarray<intmax_t>& vec, size_t num)
+void EventIO::Item::GetDiffSCount(std::valarray<intmax_t>& vec, size_t num)
 {
    check_throw("GetDiffSCount");
 
@@ -1582,7 +1582,7 @@ void Item::GetDiffSCount(std::valarray<intmax_t>& vec, size_t num)
 
 /// Get operations for signed counts (16 bit variant).
 
-void Item::GetSCount(std::valarray<int16_t>& vec)
+void EventIO::Item::GetSCount(std::valarray<int16_t>& vec)
 {
    check_throw("GetSCount");
 
@@ -1594,7 +1594,7 @@ void Item::GetSCount(std::valarray<int16_t>& vec)
       vec[i] = GetSCount16();
 }
 
-void Item::GetDiffSCount(std::valarray<int16_t>& vec)
+void EventIO::Item::GetDiffSCount(std::valarray<int16_t>& vec)
 {
    check_throw("GetDiffSCount");
 
@@ -1613,7 +1613,7 @@ void Item::GetDiffSCount(std::valarray<int16_t>& vec)
 
 /// Get operations for signed counts (32 bit variant).
 
-void Item::GetSCount(std::valarray<int32_t>& vec)
+void EventIO::Item::GetSCount(std::valarray<int32_t>& vec)
 {
    check_throw("GetSCount");
 
@@ -1625,7 +1625,7 @@ void Item::GetSCount(std::valarray<int32_t>& vec)
       vec[i] = GetSCount32();
 }
 
-void Item::GetDiffSCount(std::valarray<int32_t>& vec)
+void EventIO::Item::GetDiffSCount(std::valarray<int32_t>& vec)
 {
    check_throw("GetDiffSCount");
 
@@ -1644,7 +1644,7 @@ void Item::GetDiffSCount(std::valarray<int32_t>& vec)
 
 /// Get operations for signed counts.
 
-void Item::GetSCount(std::valarray<ssize_t>& vec)
+void EventIO::Item::GetSCount(std::valarray<ssize_t>& vec)
 {
    check_throw("GetSCount");
 
@@ -1656,7 +1656,7 @@ void Item::GetSCount(std::valarray<ssize_t>& vec)
       vec[i] = GetSCount();
 }
 
-void Item::GetDiffSCount(std::valarray<ssize_t>& vec)
+void EventIO::Item::GetDiffSCount(std::valarray<ssize_t>& vec)
 {
    check_throw("GetSCount");
 
@@ -1674,7 +1674,7 @@ void Item::GetDiffSCount(std::valarray<ssize_t>& vec)
 /// Get operations for signed counts.
 
 #if defined(WITH_INTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::GetSCount(std::valarray<intmax_t>& vec)
+void EventIO::Item::GetSCount(std::valarray<intmax_t>& vec)
 {
    check_throw("GetSCount");
 
@@ -1686,7 +1686,7 @@ void Item::GetSCount(std::valarray<intmax_t>& vec)
       vec[i] = GetSCount();
 }
 
-void Item::GetDiffSCount(std::valarray<intmax_t>& vec)
+void EventIO::Item::GetDiffSCount(std::valarray<intmax_t>& vec)
 {
    check_throw("GetDiffSCount");
 
@@ -1704,7 +1704,7 @@ void Item::GetDiffSCount(std::valarray<intmax_t>& vec)
 
 /// Get operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::GetInt16(std::vector<int16_t>& vec, size_t num)
+void EventIO::Item::GetInt16(std::vector<int16_t>& vec, size_t num)
 {
    check_throw("GetInt16");
 
@@ -1717,7 +1717,7 @@ void Item::GetInt16(std::vector<int16_t>& vec, size_t num)
 
 /// Get operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::GetInt16(std::vector<int16_t>& vec)
+void EventIO::Item::GetInt16(std::vector<int16_t>& vec)
 {
    check_throw("GetInt16");
 
@@ -1731,7 +1731,7 @@ void Item::GetInt16(std::vector<int16_t>& vec)
 
 /// Get operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::GetInt16(std::vector<int>& vec, size_t num)
+void EventIO::Item::GetInt16(std::vector<int>& vec, size_t num)
 {
    check_throw("GetInt16");
 
@@ -1744,7 +1744,7 @@ void Item::GetInt16(std::vector<int>& vec, size_t num)
 
 /// Get operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::GetInt16(std::vector<int>& vec)
+void EventIO::Item::GetInt16(std::vector<int>& vec)
 {
    check_throw("GetInt16");
 
@@ -1758,7 +1758,7 @@ void Item::GetInt16(std::vector<int>& vec)
 
 /// Get operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::GetInt16(std::valarray<int16_t>& vec, size_t num)
+void EventIO::Item::GetInt16(std::valarray<int16_t>& vec, size_t num)
 {
    check_throw("GetInt16");
 
@@ -1771,7 +1771,7 @@ void Item::GetInt16(std::valarray<int16_t>& vec, size_t num)
 
 /// Get operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::GetInt16(std::valarray<int16_t>& vec)
+void EventIO::Item::GetInt16(std::valarray<int16_t>& vec)
 {
    check_throw("GetInt16");
 
@@ -1785,7 +1785,7 @@ void Item::GetInt16(std::valarray<int16_t>& vec)
 
 /// Get operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::GetInt16(std::valarray<int>& vec, size_t num)
+void EventIO::Item::GetInt16(std::valarray<int>& vec, size_t num)
 {
    check_throw("GetInt16");
 
@@ -1798,7 +1798,7 @@ void Item::GetInt16(std::valarray<int>& vec, size_t num)
 
 /// Get operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::GetInt16(std::valarray<int>& vec)
+void EventIO::Item::GetInt16(std::valarray<int>& vec)
 {
    check_throw("GetInt16");
 
@@ -1812,7 +1812,7 @@ void Item::GetInt16(std::valarray<int>& vec)
 
 /// Get operations for 'Uint16' item type (unsigned 16-bit integers)
 
-void Item::GetUint16(std::vector<uint16_t>& vec, size_t num)
+void EventIO::Item::GetUint16(std::vector<uint16_t>& vec, size_t num)
 {
    check_throw("GetUint16");
 
@@ -1825,7 +1825,7 @@ void Item::GetUint16(std::vector<uint16_t>& vec, size_t num)
 
 /// Get operations for 'Uint16' item type (unsigned 16-bit integers)
 
-void Item::GetUint16(std::vector<uint16_t>& vec)
+void EventIO::Item::GetUint16(std::vector<uint16_t>& vec)
 {
    check_throw("GetUint16");
 
@@ -1839,7 +1839,7 @@ void Item::GetUint16(std::vector<uint16_t>& vec)
 
 /// Get operations for 'Uint16' item type (unsigned 16-bit integers)
 
-void Item::GetUint16(std::valarray<uint16_t>& vec, size_t num)
+void EventIO::Item::GetUint16(std::valarray<uint16_t>& vec, size_t num)
 {
    check_throw("GetUint16");
 
@@ -1852,7 +1852,7 @@ void Item::GetUint16(std::valarray<uint16_t>& vec, size_t num)
 
 /// Get operations for 'Uint16' item type (unsigned 16-bit integers)
 
-void Item::GetUint16(std::valarray<uint16_t>& vec)
+void EventIO::Item::GetUint16(std::valarray<uint16_t>& vec)
 {
    check_throw("GetUint16");
 
@@ -1866,7 +1866,7 @@ void Item::GetUint16(std::valarray<uint16_t>& vec)
 
 /// Get operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::GetInt32(std::vector<int32_t>& vec, size_t num)
+void EventIO::Item::GetInt32(std::vector<int32_t>& vec, size_t num)
 {
    check_throw("GetInt32");
 
@@ -1879,7 +1879,7 @@ void Item::GetInt32(std::vector<int32_t>& vec, size_t num)
 
 /// Get operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::GetInt32(std::vector<int32_t>& vec)
+void EventIO::Item::GetInt32(std::vector<int32_t>& vec)
 {
    check_throw("GetInt32");
 
@@ -1893,7 +1893,7 @@ void Item::GetInt32(std::vector<int32_t>& vec)
 
 /// Get operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::GetInt32(std::vector<long>& vec, size_t num)
+void EventIO::Item::GetInt32(std::vector<long>& vec, size_t num)
 {
    check_throw("GetInt32");
 
@@ -1906,7 +1906,7 @@ void Item::GetInt32(std::vector<long>& vec, size_t num)
 
 /// Get operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::GetInt32(std::vector<long>& vec)
+void EventIO::Item::GetInt32(std::vector<long>& vec)
 {
    check_throw("GetInt32");
 
@@ -1920,7 +1920,7 @@ void Item::GetInt32(std::vector<long>& vec)
 
 /// Get operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::GetInt32(std::valarray<int32_t>& vec, size_t num)
+void EventIO::Item::GetInt32(std::valarray<int32_t>& vec, size_t num)
 {
    check_throw("GetInt32");
 
@@ -1933,7 +1933,7 @@ void Item::GetInt32(std::valarray<int32_t>& vec, size_t num)
 
 /// Get operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::GetInt32(std::valarray<int32_t>& vec)
+void EventIO::Item::GetInt32(std::valarray<int32_t>& vec)
 {
    check_throw("GetInt32");
 
@@ -1947,7 +1947,7 @@ void Item::GetInt32(std::valarray<int32_t>& vec)
 
 /// Get operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::GetInt32(std::valarray<long>& vec, size_t num)
+void EventIO::Item::GetInt32(std::valarray<long>& vec, size_t num)
 {
    check_throw("GetInt32");
 
@@ -1960,7 +1960,7 @@ void Item::GetInt32(std::valarray<long>& vec, size_t num)
 
 /// Get operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::GetInt32(std::valarray<long>& vec)
+void EventIO::Item::GetInt32(std::valarray<long>& vec)
 {
    check_throw("GetInt32");
 
@@ -1974,7 +1974,7 @@ void Item::GetInt32(std::valarray<long>& vec)
 
 /// Get operations for 'Uint32' item type (unsigned 32-bit integers)
 
-void Item::GetUint32(std::vector<uint32_t>& vec, size_t num)
+void EventIO::Item::GetUint32(std::vector<uint32_t>& vec, size_t num)
 {
    check_throw("GetUint32");
 
@@ -1987,7 +1987,7 @@ void Item::GetUint32(std::vector<uint32_t>& vec, size_t num)
 
 /// Get operations for 'Uint32' item type (unsigned 32-bit integers)
 
-void Item::GetUint32(std::vector<uint32_t>& vec)
+void EventIO::Item::GetUint32(std::vector<uint32_t>& vec)
 {
    check_throw("GetUint32");
 
@@ -2001,7 +2001,7 @@ void Item::GetUint32(std::vector<uint32_t>& vec)
 
 /// Get operations for 'Uint32' item type (unsigned 32-bit integers)
 
-void Item::GetUint32(std::valarray<uint32_t>& vec, size_t num)
+void EventIO::Item::GetUint32(std::valarray<uint32_t>& vec, size_t num)
 {
    check_throw("GetUint32");
 
@@ -2014,7 +2014,7 @@ void Item::GetUint32(std::valarray<uint32_t>& vec, size_t num)
 
 /// Get operations for 'Uint32' item type (unsigned 32-bit integers)
 
-void Item::GetUint32(std::valarray<uint32_t>& vec)
+void EventIO::Item::GetUint32(std::valarray<uint32_t>& vec)
 {
    check_throw("GetUint32");
 
@@ -2030,7 +2030,7 @@ void Item::GetUint32(std::valarray<uint32_t>& vec)
 
 /// Get operations for 'Int64' item type (signed 64-bit integers)
 
-void Item::GetInt64(std::vector<int64_t>& vec, size_t num)
+void EventIO::Item::GetInt64(std::vector<int64_t>& vec, size_t num)
 {
    check_throw("GetInt64");
 
@@ -2043,7 +2043,7 @@ void Item::GetInt64(std::vector<int64_t>& vec, size_t num)
 
 /// Get operations for 'Int64' item type (signed 64-bit integers)
 
-void Item::GetInt64(std::vector<int64_t>& vec)
+void EventIO::Item::GetInt64(std::vector<int64_t>& vec)
 {
    check_throw("GetInt64");
 
@@ -2057,7 +2057,7 @@ void Item::GetInt64(std::vector<int64_t>& vec)
 
 /// Get operations for 'Int64' item type (signed 64-bit integers)
 
-void Item::GetInt64(std::valarray<int64_t>& vec, size_t num)
+void EventIO::Item::GetInt64(std::valarray<int64_t>& vec, size_t num)
 {
    check_throw("GetInt64");
 
@@ -2070,7 +2070,7 @@ void Item::GetInt64(std::valarray<int64_t>& vec, size_t num)
 
 /// Get operations for 'Int64' item type (signed 64-bit integers)
 
-void Item::GetInt64(std::valarray<int64_t>& vec)
+void EventIO::Item::GetInt64(std::valarray<int64_t>& vec)
 {
    check_throw("GetInt64");
 
@@ -2084,7 +2084,7 @@ void Item::GetInt64(std::valarray<int64_t>& vec)
 
 /// Get operations for 'Uint64' item type (unsigned 64-bit integers)
 
-void Item::GetUint64(std::vector<uint64_t>& vec, size_t num)
+void EventIO::Item::GetUint64(std::vector<uint64_t>& vec, size_t num)
 {
    check_throw("GetUint64");
 
@@ -2097,7 +2097,7 @@ void Item::GetUint64(std::vector<uint64_t>& vec, size_t num)
 
 /// Get operations for 'Uint64' item type (unsigned 64-bit integers)
 
-void Item::GetUint64(std::vector<uint64_t>& vec)
+void EventIO::Item::GetUint64(std::vector<uint64_t>& vec)
 {
    check_throw("GetUint64");
 
@@ -2111,7 +2111,7 @@ void Item::GetUint64(std::vector<uint64_t>& vec)
 
 /// Get operations for 'Uint64' item type (unsigned 64-bit integers)
 
-void Item::GetUint64(std::valarray<uint64_t>& vec, size_t num)
+void EventIO::Item::GetUint64(std::valarray<uint64_t>& vec, size_t num)
 {
    check_throw("GetUint64");
 
@@ -2124,7 +2124,7 @@ void Item::GetUint64(std::valarray<uint64_t>& vec, size_t num)
 
 /// Get operations for 'Uint64' item type (unsigned 64-bit integers)
 
-void Item::GetUint64(std::valarray<uint64_t>& vec)
+void EventIO::Item::GetUint64(std::valarray<uint64_t>& vec)
 {
    check_throw("GetUint64");
 
@@ -2139,7 +2139,7 @@ void Item::GetUint64(std::valarray<uint64_t>& vec)
 
 /// Get operations for 'Real' item type (32-bit IEEE float)
 
-void Item::GetReal(std::vector<float>& vec, size_t num)
+void EventIO::Item::GetReal(std::vector<float>& vec, size_t num)
 {
    check_throw("GetReal");
 
@@ -2152,7 +2152,7 @@ void Item::GetReal(std::vector<float>& vec, size_t num)
 
 /// Get operations for 'Real' item type (32-bit IEEE float)
 
-void Item::GetReal(std::vector<float>& vec)
+void EventIO::Item::GetReal(std::vector<float>& vec)
 {
    check_throw("GetReal");
 
@@ -2166,7 +2166,7 @@ void Item::GetReal(std::vector<float>& vec)
 
 /// Get operations for 'Real' item type (32-bit IEEE float)
 
-void Item::GetReal(std::valarray<float>& vec, size_t num)
+void EventIO::Item::GetReal(std::valarray<float>& vec, size_t num)
 {
    check_throw("GetReal");
 
@@ -2179,7 +2179,7 @@ void Item::GetReal(std::valarray<float>& vec, size_t num)
 
 /// Get operations for 'Real' item type (32-bit IEEE float)
 
-void Item::GetReal(std::valarray<float>& vec)
+void EventIO::Item::GetReal(std::valarray<float>& vec)
 {
    check_throw("GetReal");
 
@@ -2193,7 +2193,7 @@ void Item::GetReal(std::valarray<float>& vec)
 
 /// Get operations for 'Real' item type (32-bit IEEE float)
 
-void Item::GetReal(std::vector<double>& vec, size_t num)
+void EventIO::Item::GetReal(std::vector<double>& vec, size_t num)
 {
    check_throw("GetReal");
 
@@ -2206,7 +2206,7 @@ void Item::GetReal(std::vector<double>& vec, size_t num)
 
 /// Get operations for 'Real' item type (32-bit IEEE float)
 
-void Item::GetReal(std::vector<double>& vec)
+void EventIO::Item::GetReal(std::vector<double>& vec)
 {
    check_throw("GetReal");
 
@@ -2220,7 +2220,7 @@ void Item::GetReal(std::vector<double>& vec)
 
 /// Get operations for 'Real' item type (32-bit IEEE float)
 
-void Item::GetReal(std::valarray<double>& vec, size_t num)
+void EventIO::Item::GetReal(std::valarray<double>& vec, size_t num)
 {
    check_throw("GetReal");
 
@@ -2233,7 +2233,7 @@ void Item::GetReal(std::valarray<double>& vec, size_t num)
 
 /// Get operations for 'Real' item type (32-bit IEEE float)
 
-void Item::GetReal(std::valarray<double>& vec)
+void EventIO::Item::GetReal(std::valarray<double>& vec)
 {
    check_throw("GetReal");
 
@@ -2247,7 +2247,7 @@ void Item::GetReal(std::valarray<double>& vec)
 
 /// Get operations for 'Double' item type (64-bit IEEE double)
 
-void Item::GetDouble(std::vector<double>& vec, size_t num)
+void EventIO::Item::GetDouble(std::vector<double>& vec, size_t num)
 {
    check_throw("GetDouble");
 
@@ -2260,7 +2260,7 @@ void Item::GetDouble(std::vector<double>& vec, size_t num)
 
 /// Get operations for 'Double' item type (64-bit IEEE double)
 
-void Item::GetDouble(std::vector<double>& vec)
+void EventIO::Item::GetDouble(std::vector<double>& vec)
 {
    check_throw("GetDouble");
 
@@ -2274,7 +2274,7 @@ void Item::GetDouble(std::vector<double>& vec)
 
 /// Get operations for 'Double' item type (64-bit IEEE double)
 
-void Item::GetDouble(std::valarray<double>& vec, size_t num)
+void EventIO::Item::GetDouble(std::valarray<double>& vec, size_t num)
 {
    check_throw("GetDouble");
 
@@ -2287,7 +2287,7 @@ void Item::GetDouble(std::valarray<double>& vec, size_t num)
 
 /// Get operations for 'Double' item type (64-bit IEEE double)
 
-void Item::GetDouble(std::valarray<double>& vec)
+void EventIO::Item::GetDouble(std::valarray<double>& vec)
 {
    check_throw("GetDouble");
 
@@ -2302,7 +2302,7 @@ void Item::GetDouble(std::valarray<double>& vec)
 
 /// Get operations for 'Sfloat' item type (16-bit OpenGL float)
 
-void Item::GetSfloat(std::vector<float>& vec, size_t num)
+void EventIO::Item::GetSfloat(std::vector<float>& vec, size_t num)
 {
    check_throw("GetSfloat");
 
@@ -2313,7 +2313,7 @@ void Item::GetSfloat(std::vector<float>& vec, size_t num)
       vec[i] = (float)GetSfloat();
 }
 
-void Item::GetSfloat(std::vector<double>& vec, size_t num)
+void EventIO::Item::GetSfloat(std::vector<double>& vec, size_t num)
 {
    check_throw("GetSfloat");
 
@@ -2326,7 +2326,7 @@ void Item::GetSfloat(std::vector<double>& vec, size_t num)
 
 /// Get operations for 'Sfloat' item type (16-bit OpenGL float)
 
-void Item::GetSfloat(std::vector<float>& vec)
+void EventIO::Item::GetSfloat(std::vector<float>& vec)
 {
    check_throw("GetSfloat");
 
@@ -2338,7 +2338,7 @@ void Item::GetSfloat(std::vector<float>& vec)
       vec[i] = (float)GetSfloat();
 }
 
-void Item::GetSfloat(std::vector<double>& vec)
+void EventIO::Item::GetSfloat(std::vector<double>& vec)
 {
    check_throw("GetSfloat");
 
@@ -2352,7 +2352,7 @@ void Item::GetSfloat(std::vector<double>& vec)
 
 /// Get operations for 'Sfloat' item type (16-bit OpenGL float)
 
-void Item::GetSfloat(std::valarray<float>& vec, size_t num)
+void EventIO::Item::GetSfloat(std::valarray<float>& vec, size_t num)
 {
    check_throw("GetSfloat");
 
@@ -2363,7 +2363,7 @@ void Item::GetSfloat(std::valarray<float>& vec, size_t num)
       vec[i] = (float)GetSfloat();
 }
 
-void Item::GetSfloat(std::valarray<double>& vec, size_t num)
+void EventIO::Item::GetSfloat(std::valarray<double>& vec, size_t num)
 {
    check_throw("GetSfloat");
 
@@ -2376,7 +2376,7 @@ void Item::GetSfloat(std::valarray<double>& vec, size_t num)
 
 /// Get operations for 'Sfloat' item type (16-bit OpenGL float)
 
-void Item::GetSfloat(std::valarray<float>& vec)
+void EventIO::Item::GetSfloat(std::valarray<float>& vec)
 {
    check_throw("GetSfloat");
 
@@ -2388,7 +2388,7 @@ void Item::GetSfloat(std::valarray<float>& vec)
       vec[i] = (float)GetSfloat();
 }
 
-void Item::GetSfloat(std::valarray<double>& vec)
+void EventIO::Item::GetSfloat(std::valarray<double>& vec)
 {
    check_throw("GetSfloat");
 
@@ -2403,7 +2403,7 @@ void Item::GetSfloat(std::valarray<double>& vec)
 
 /// Get operation for old-style strings with 16-bit length prefix.
 
-int Item::GetString16(std::string& s)
+int EventIO::Item::GetString16(std::string& s)
 {
    check_throw("GetString");
 
@@ -2417,7 +2417,7 @@ int Item::GetString16(std::string& s)
 
 /// Get operation for old-style strings with 32-bit length prefix.
 
-int Item::GetString32(std::string& s)
+int EventIO::Item::GetString32(std::string& s)
 {
    check_throw("GetString");
 
@@ -2431,7 +2431,7 @@ int Item::GetString32(std::string& s)
 
 /// Get operation for strings of any length.
 
-int Item::GetString(std::string& s)
+int EventIO::Item::GetString(std::string& s)
 {
    check_throw("GetString");
 
@@ -2455,7 +2455,7 @@ int Item::GetString(std::string& s)
 /// using a GetUint32() in the above code.
 /// The C language equivalent of the method here is called get_var_string().
 
-int Item::GetString(char *s, size_t nmax)
+int EventIO::Item::GetString(char *s, size_t nmax)
 {
    check_throw("GetString");
 
@@ -2464,7 +2464,7 @@ int Item::GetString(char *s, size_t nmax)
 
 /// Get operation for vectors of strings of any length.
 
-void Item::GetString(std::vector<std::string>& vec)
+void EventIO::Item::GetString(std::vector<std::string>& vec)
 {
    check_throw("GetString");
 
@@ -2478,7 +2478,7 @@ void Item::GetString(std::vector<std::string>& vec)
 
 /// Get operation for vectors of strings of any length.
 
-void Item::GetString(std::vector<std::string>& vec, size_t num)
+void EventIO::Item::GetString(std::vector<std::string>& vec, size_t num)
 {
    check_throw("GetString");
 
@@ -2491,7 +2491,7 @@ void Item::GetString(std::vector<std::string>& vec, size_t num)
 
 /// Get operation for valarrays of strings of any length.
 
-void Item::GetString(std::valarray<std::string>& vec)
+void EventIO::Item::GetString(std::valarray<std::string>& vec)
 {
    check_throw("GetString");
 
@@ -2505,7 +2505,7 @@ void Item::GetString(std::valarray<std::string>& vec)
 
 /// Get operation for valarrays of strings of any length.
 
-void Item::GetString(std::valarray<std::string>& vec, size_t num)
+void EventIO::Item::GetString(std::valarray<std::string>& vec, size_t num)
 {
    check_throw("GetString");
 
@@ -2520,7 +2520,7 @@ void Item::GetString(std::valarray<std::string>& vec, size_t num)
 
 /// Put operations for bytes (only unsigned flavour implemented).
 
-void Item::PutUint8(const std::vector<uint8_t>& vec, size_t num)
+void EventIO::Item::PutUint8(const std::vector<uint8_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2532,7 +2532,7 @@ void Item::PutUint8(const std::vector<uint8_t>& vec, size_t num)
 
 /// Put operations for bytes (only unsigned flavour implemented).
 
-void Item::PutUint8(const std::valarray<uint8_t>& vec, size_t num)
+void EventIO::Item::PutUint8(const std::valarray<uint8_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2544,7 +2544,7 @@ void Item::PutUint8(const std::valarray<uint8_t>& vec, size_t num)
 
 /// Put operations for bools.
 
-void Item::PutBool(const std::vector<bool>& vec, size_t num)
+void EventIO::Item::PutBool(const std::vector<bool>& vec, size_t num)
 {
    size_t i, j, n=vec.size();
    
@@ -2578,7 +2578,7 @@ void Item::PutBool(const std::vector<bool>& vec, size_t num)
 
 /// Put operations for bools.
 
-void Item::PutBool(const std::valarray<bool>& vec, size_t num)
+void EventIO::Item::PutBool(const std::valarray<bool>& vec, size_t num)
 {
    size_t i, j, n=vec.size();
    
@@ -2612,7 +2612,7 @@ void Item::PutBool(const std::valarray<bool>& vec, size_t num)
 
 /// Put operations for counts.
 
-void Item::PutCount(const std::vector<uint16_t>& vec, size_t num)
+void EventIO::Item::PutCount(const std::vector<uint16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2624,7 +2624,7 @@ void Item::PutCount(const std::vector<uint16_t>& vec, size_t num)
 
 #ifdef SIXTY_FOUR_BITS
 
-void Item::PutCount(const std::vector<uint32_t>& vec, size_t num)
+void EventIO::Item::PutCount(const std::vector<uint32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2636,7 +2636,7 @@ void Item::PutCount(const std::vector<uint32_t>& vec, size_t num)
 
 #endif
 
-void Item::PutCount(const std::vector<size_t>& vec, size_t num)
+void EventIO::Item::PutCount(const std::vector<size_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2649,7 +2649,7 @@ void Item::PutCount(const std::vector<size_t>& vec, size_t num)
 /// Put operations for counts.
 
 #if defined(WITH_UINTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::PutCount(const std::vector<uintmax_t>& vec, size_t num)
+void EventIO::Item::PutCount(const std::vector<uintmax_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2662,7 +2662,7 @@ void Item::PutCount(const std::vector<uintmax_t>& vec, size_t num)
 
 /// Put operations for counts.
 
-void Item::PutCount(const std::valarray<uint16_t>& vec, size_t num)
+void EventIO::Item::PutCount(const std::valarray<uint16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2674,7 +2674,7 @@ void Item::PutCount(const std::valarray<uint16_t>& vec, size_t num)
 
 #ifdef SIXTY_FOUR_BITS
 
-void Item::PutCount(const std::valarray<uint32_t>& vec, size_t num)
+void EventIO::Item::PutCount(const std::valarray<uint32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2686,7 +2686,7 @@ void Item::PutCount(const std::valarray<uint32_t>& vec, size_t num)
 
 #endif
 
-void Item::PutCount(const std::valarray<size_t>& vec, size_t num)
+void EventIO::Item::PutCount(const std::valarray<size_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2699,7 +2699,7 @@ void Item::PutCount(const std::valarray<size_t>& vec, size_t num)
 /// Put operations for counts.
 
 #if defined(WITH_UINTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::PutCount(const std::valarray<uintmax_t>& vec, size_t num)
+void EventIO::Item::PutCount(const std::valarray<uintmax_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2712,7 +2712,7 @@ void Item::PutCount(const std::valarray<uintmax_t>& vec, size_t num)
 
 /// Put operations for scounts.
 
-void Item::PutSCount(const std::vector<int16_t>& vec, size_t num)
+void EventIO::Item::PutSCount(const std::vector<int16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2722,7 +2722,7 @@ void Item::PutSCount(const std::vector<int16_t>& vec, size_t num)
       PutSCount16(0);
 }
 
-void Item::PutDiffSCount(const std::vector<int16_t>& vec, size_t num)
+void EventIO::Item::PutDiffSCount(const std::vector<int16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2746,7 +2746,7 @@ void Item::PutDiffSCount(const std::vector<int16_t>& vec, size_t num)
 
 #ifdef SIXTY_FOUR_BITS
 
-void Item::PutSCount(const std::vector<int32_t>& vec, size_t num)
+void EventIO::Item::PutSCount(const std::vector<int32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2756,7 +2756,7 @@ void Item::PutSCount(const std::vector<int32_t>& vec, size_t num)
       PutSCount32(0);
 }
 
-void Item::PutDiffSCount(const std::vector<int32_t>& vec, size_t num)
+void EventIO::Item::PutDiffSCount(const std::vector<int32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2780,7 +2780,7 @@ void Item::PutDiffSCount(const std::vector<int32_t>& vec, size_t num)
 
 #endif
 
-void Item::PutSCount(const std::vector<ssize_t>& vec, size_t num)
+void EventIO::Item::PutSCount(const std::vector<ssize_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2790,7 +2790,7 @@ void Item::PutSCount(const std::vector<ssize_t>& vec, size_t num)
       PutSCount(0);
 }
 
-void Item::PutDiffSCount(const std::vector<ssize_t>& vec, size_t num)
+void EventIO::Item::PutDiffSCount(const std::vector<ssize_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2815,7 +2815,7 @@ void Item::PutDiffSCount(const std::vector<ssize_t>& vec, size_t num)
 /// Put operations for scounts.
 
 #if defined(WITH_INTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::PutSCount(const std::vector<intmax_t>& vec, size_t num)
+void EventIO::Item::PutSCount(const std::vector<intmax_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2825,7 +2825,7 @@ void Item::PutSCount(const std::vector<intmax_t>& vec, size_t num)
       PutSCount(0);
 }
 
-void Item::PutDiffSCount(const std::vector<intmax_t>& vec, size_t num)
+void EventIO::Item::PutDiffSCount(const std::vector<intmax_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2850,7 +2850,7 @@ void Item::PutDiffSCount(const std::vector<intmax_t>& vec, size_t num)
 
 /// Put operations for scounts.
 
-void Item::PutSCount(const std::valarray<int16_t>& vec, size_t num)
+void EventIO::Item::PutSCount(const std::valarray<int16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2860,7 +2860,7 @@ void Item::PutSCount(const std::valarray<int16_t>& vec, size_t num)
       PutSCount16(0);
 }
 
-void Item::PutDiffSCount(const std::valarray<int16_t>& vec, size_t num)
+void EventIO::Item::PutDiffSCount(const std::valarray<int16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2884,7 +2884,7 @@ void Item::PutDiffSCount(const std::valarray<int16_t>& vec, size_t num)
 
 #ifdef SIXTY_FOUR_BITS
 
-void Item::PutSCount(const std::valarray<int32_t>& vec, size_t num)
+void EventIO::Item::PutSCount(const std::valarray<int32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2894,7 +2894,7 @@ void Item::PutSCount(const std::valarray<int32_t>& vec, size_t num)
       PutSCount32(0);
 }
 
-void Item::PutDiffSCount(const std::valarray<int32_t>& vec, size_t num)
+void EventIO::Item::PutDiffSCount(const std::valarray<int32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2918,7 +2918,7 @@ void Item::PutDiffSCount(const std::valarray<int32_t>& vec, size_t num)
 
 #endif
 
-void Item::PutSCount(const std::valarray<ssize_t>& vec, size_t num)
+void EventIO::Item::PutSCount(const std::valarray<ssize_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2928,7 +2928,7 @@ void Item::PutSCount(const std::valarray<ssize_t>& vec, size_t num)
       PutSCount(0);
 }
 
-void Item::PutDiffSCount(const std::valarray<ssize_t>& vec, size_t num)
+void EventIO::Item::PutDiffSCount(const std::valarray<ssize_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2953,7 +2953,7 @@ void Item::PutDiffSCount(const std::valarray<ssize_t>& vec, size_t num)
 /// Put operations for counts.
 
 #if defined(WITH_INTMAX_T) && !defined(SIXTY_FOUR_BITS)
-void Item::PutSCount(const std::valarray<intmax_t>& vec, size_t num)
+void EventIO::Item::PutSCount(const std::valarray<intmax_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2963,7 +2963,7 @@ void Item::PutSCount(const std::valarray<intmax_t>& vec, size_t num)
       PutSCount(0);
 }
 
-void Item::PutDiffSCount(const std::valarray<intmax_t>& vec, size_t num)
+void EventIO::Item::PutDiffSCount(const std::valarray<intmax_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -2988,7 +2988,7 @@ void Item::PutDiffSCount(const std::valarray<intmax_t>& vec, size_t num)
 
 /// Put operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::PutInt16(const std::vector<int16_t>& vec, size_t num)
+void EventIO::Item::PutInt16(const std::vector<int16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3000,7 +3000,7 @@ void Item::PutInt16(const std::vector<int16_t>& vec, size_t num)
 
 /// Put operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::PutInt16(const std::vector<int>& vec, size_t num)
+void EventIO::Item::PutInt16(const std::vector<int>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3012,7 +3012,7 @@ void Item::PutInt16(const std::vector<int>& vec, size_t num)
 
 /// Put operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::PutInt16(const std::valarray<int16_t>& vec, size_t num)
+void EventIO::Item::PutInt16(const std::valarray<int16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3024,7 +3024,7 @@ void Item::PutInt16(const std::valarray<int16_t>& vec, size_t num)
 
 /// Put operations for 'Int16' item type (signed 16-bit integers, 'SHORT')
 
-void Item::PutInt16(const std::valarray<int>& vec, size_t num)
+void EventIO::Item::PutInt16(const std::valarray<int>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3036,7 +3036,7 @@ void Item::PutInt16(const std::valarray<int>& vec, size_t num)
 
 /// Put operations for 'Uint16' item type (unsigned 16-bit integers)
 
-void Item::PutUint16(const std::vector<uint16_t>& vec, size_t num)
+void EventIO::Item::PutUint16(const std::vector<uint16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3048,7 +3048,7 @@ void Item::PutUint16(const std::vector<uint16_t>& vec, size_t num)
 
 /// Put operations for 'Uint16' item type (unsigned 16-bit integers)
 
-void Item::PutUint16(const std::valarray<uint16_t>& vec, size_t num)
+void EventIO::Item::PutUint16(const std::valarray<uint16_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3060,7 +3060,7 @@ void Item::PutUint16(const std::valarray<uint16_t>& vec, size_t num)
 
 /// Put operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::PutInt32(const std::vector<int32_t>& vec, size_t num)
+void EventIO::Item::PutInt32(const std::vector<int32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3072,7 +3072,7 @@ void Item::PutInt32(const std::vector<int32_t>& vec, size_t num)
 
 /// Put operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::PutInt32(const std::vector<long>& vec, size_t num)
+void EventIO::Item::PutInt32(const std::vector<long>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3084,7 +3084,7 @@ void Item::PutInt32(const std::vector<long>& vec, size_t num)
 
 /// Put operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::PutInt32(const std::valarray<int32_t>& vec, size_t num)
+void EventIO::Item::PutInt32(const std::valarray<int32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3096,7 +3096,7 @@ void Item::PutInt32(const std::valarray<int32_t>& vec, size_t num)
 
 /// Put operations for 'Int32' item type (signed 32-bit integers, 'LONG')
 
-void Item::PutInt32(const std::valarray<long>& vec, size_t num)
+void EventIO::Item::PutInt32(const std::valarray<long>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3108,7 +3108,7 @@ void Item::PutInt32(const std::valarray<long>& vec, size_t num)
 
 /// Put operations for 'Uint32' item type (unsigned 32-bit integers)
 
-void Item::PutUint32(const std::vector<uint32_t>& vec, size_t num)
+void EventIO::Item::PutUint32(const std::vector<uint32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3120,7 +3120,7 @@ void Item::PutUint32(const std::vector<uint32_t>& vec, size_t num)
 
 /// Put operations for 'Uint32' item type (unsigned 32-bit integers)
 
-void Item::PutUint32(const std::valarray<uint32_t>& vec, size_t num)
+void EventIO::Item::PutUint32(const std::valarray<uint32_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3134,7 +3134,7 @@ void Item::PutUint32(const std::valarray<uint32_t>& vec, size_t num)
 
 /// Put operations for 'Int64' item type (signed 64-bit integers)
 
-void Item::PutInt64(const std::vector<int64_t>& vec, size_t num)
+void EventIO::Item::PutInt64(const std::vector<int64_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3146,7 +3146,7 @@ void Item::PutInt64(const std::vector<int64_t>& vec, size_t num)
 
 /// Put operations for 'Int64' item type (signed 64-bit integers)
 
-void Item::PutInt64(const std::valarray<int64_t>& vec, size_t num)
+void EventIO::Item::PutInt64(const std::valarray<int64_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3158,7 +3158,7 @@ void Item::PutInt64(const std::valarray<int64_t>& vec, size_t num)
 
 /// Put operations for 'Uint64' item type (unsigned 64-bit integers)
 
-void Item::PutUint64(const std::vector<uint64_t>& vec, size_t num)
+void EventIO::Item::PutUint64(const std::vector<uint64_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3170,7 +3170,7 @@ void Item::PutUint64(const std::vector<uint64_t>& vec, size_t num)
 
 /// Put operations for 'Uint64' item type (unsigned 64-bit integers)
 
-void Item::PutUint64(const std::valarray<uint64_t>& vec, size_t num)
+void EventIO::Item::PutUint64(const std::valarray<uint64_t>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3183,7 +3183,7 @@ void Item::PutUint64(const std::valarray<uint64_t>& vec, size_t num)
 
 /// Put operations for 'Real' item type (32-bit IEEE float)
 
-void Item::PutReal(const std::vector<float>& vec, size_t num)
+void EventIO::Item::PutReal(const std::vector<float>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3195,7 +3195,7 @@ void Item::PutReal(const std::vector<float>& vec, size_t num)
 
 /// Put operations for 'Real' item type (32-bit IEEE float)
 
-void Item::PutReal(const std::valarray<float>& vec, size_t num)
+void EventIO::Item::PutReal(const std::valarray<float>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3207,7 +3207,7 @@ void Item::PutReal(const std::valarray<float>& vec, size_t num)
 
 /// Put operations for 'Real' item type (32-bit IEEE float)
 
-void Item::PutReal(const std::vector<double>& vec, size_t num)
+void EventIO::Item::PutReal(const std::vector<double>& vec, size_t num)
 {
    size_t i, n=vec.size();
    
@@ -3219,7 +3219,7 @@ void Item::PutReal(const std::vector<double>& vec, size_t num)
 
 /// Put operations for 'Real' item type (32-bit IEEE float)
 
-void Item::PutReal(const std::valarray<double>& vec, size_t num)
+void EventIO::Item::PutReal(const std::valarray<double>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3231,7 +3231,7 @@ void Item::PutReal(const std::valarray<double>& vec, size_t num)
 
 /// Put operations for 'Double' item type (64-bit IEEE double)
 
-void Item::PutDouble(const std::vector<double>& vec, size_t num)
+void EventIO::Item::PutDouble(const std::vector<double>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3243,7 +3243,7 @@ void Item::PutDouble(const std::vector<double>& vec, size_t num)
 
 /// Put operations for 'Double' item type (64-bit IEEE double)
 
-void Item::PutDouble(const std::valarray<double>& vec, size_t num)
+void EventIO::Item::PutDouble(const std::valarray<double>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3256,7 +3256,7 @@ void Item::PutDouble(const std::valarray<double>& vec, size_t num)
 
 /// Put operations for 'Sfloat' item type (16-bit OpenGL float)
 
-void Item::PutSfloat(const std::vector<float>& vec, size_t num)
+void EventIO::Item::PutSfloat(const std::vector<float>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3266,7 +3266,7 @@ void Item::PutSfloat(const std::vector<float>& vec, size_t num)
       PutSfloat(0.);
 }
 
-void Item::PutSfloat(const std::vector<double>& vec, size_t num)
+void EventIO::Item::PutSfloat(const std::vector<double>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3278,7 +3278,7 @@ void Item::PutSfloat(const std::vector<double>& vec, size_t num)
 
 /// Put operations for 'Sfloat' item type (16-bit OpenGL float)
 
-void Item::PutSfloat(const std::valarray<float>& vec, size_t num)
+void EventIO::Item::PutSfloat(const std::valarray<float>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3288,7 +3288,7 @@ void Item::PutSfloat(const std::valarray<float>& vec, size_t num)
       PutSfloat(0.);
 }
 
-void Item::PutSfloat(const std::valarray<double>& vec, size_t num)
+void EventIO::Item::PutSfloat(const std::valarray<double>& vec, size_t num)
 {
    size_t i, n=vec.size();
 
@@ -3300,7 +3300,7 @@ void Item::PutSfloat(const std::valarray<double>& vec, size_t num)
 
 /// Put operations for strings of any length
 
-void Item::PutString(const std::string& s)
+void EventIO::Item::PutString(const std::string& s)
 {
    size_t l = s.size();
    PutCount(l);
@@ -3308,7 +3308,7 @@ void Item::PutString(const std::string& s)
       PutUint8(s[i]);
 }
 
-void Item::PutString(const char *s)
+void EventIO::Item::PutString(const char *s)
 {
    size_t l = strlen(s);
    PutCount(l);
@@ -3318,43 +3318,59 @@ void Item::PutString(const char *s)
 
 /// Put operations for strings with old-style 16 bit length prefix.
 
-void Item::PutString16(const std::string& s)
+void EventIO::Item::PutString16(const std::string& s)
 {
    size_t l = s.size();
-   PutUint16(l);
+   if ( l>32767UL )
+      l = 32767UL; // Need to truncate
+   uint16_t l16 = (uint16_t) l;
+
+   PutUint16(l16);
    for (size_t i=0; i<l; ++i)
       PutUint8(s[i]);
 }
 
-void Item::PutString16(const char *s)
+void EventIO::Item::PutString16(const char *s)
 {
    size_t l = strlen(s);
-   PutUint16(l);
+   if ( l>32767UL )
+      l = 32767UL; // Need to truncate
+   uint16_t l16 = (uint16_t) l;
+
+   PutUint16(l16);
    for (size_t i=0; i<l; ++i)
       PutUint8(s[i]);
 }
 
 /// Put operations for strings with old-style 32 bit length prefix.
 
-void Item::PutString32(const std::string& s)
+void EventIO::Item::PutString32(const std::string& s)
 {
    size_t l = s.size();
-   PutUint32(l);
+   if ( l>2147483647UL )
+      l = 2147483647UL; // Need to truncate
+   uint32_t l32 = (uint32_t) l;
+
+   PutUint32(l32);
    for (size_t i=0; i<l; ++i)
       PutUint8(s[i]);
 }
 
-void Item::PutString32(const char *s)
+void EventIO::Item::PutString32(const char *s)
 {
    size_t l = strlen(s);
-   PutUint32(l);
+   if ( l>2147483647UL )
+      l = 2147483647UL; // Need to truncate
+   uint32_t l32 = (uint32_t) l;
+
+   PutUint32(l32);
    for (size_t i=0; i<l; ++i)
       PutUint8(s[i]);
 }
 
 /// Put operations for vectors of strings of any length.
 
-void Item::PutString(const std::vector<std::string>& vec, size_t num)
+void EventIO::Item::PutString(const std::vector<std::string>& vec, size_t num)
 {
    size_t i, n=vec.size();
    
@@ -3366,7 +3382,7 @@ void Item::PutString(const std::vector<std::string>& vec, size_t num)
 
 /// Put operations for valarrays of strings of any length.
 
-void Item::PutString(const std::valarray<std::string>& vec, size_t num)
+void EventIO::Item::PutString(const std::valarray<std::string>& vec, size_t num)
 {
    size_t i, n=vec.size();
    

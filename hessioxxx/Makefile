@@ -35,6 +35,13 @@ ifneq ($(wildcard src/add_histograms.c),)
    PROGRAMS += add_histograms
 endif
 
+SYSTEM := $(shell uname)
+MACHINE:= $(shell uname -m)
+WITH_GCC := $(shell ($(CC) --version 2>/dev/null | fgrep GCC) && echo 1 || echo 0)
+ifeq ($(WITH_GCC),1)
+   GCC_VERSION := $(shell $(CC) -dumpversion 2>/dev/null)
+endif
+
 # Optional programs (C++ API).
 ifeq ($(NOCXX),)
 ifneq ($(wildcard src/TestIO.cc),)
@@ -53,13 +60,6 @@ ifneq ($(wildcard src/filterio.cc),)
 endif
 endif
 LIBDIR := $(shell /bin/pwd)/lib
-
-SYSTEM := $(shell uname)
-MACHINE:= $(shell uname -m)
-WITH_GCC := $(shell ($(CC) --version 2>/dev/null | fgrep GCC) && echo 1 || echo 0)
-ifeq ($(WITH_GCC),1)
-   GCC_VERSION := $(shell $(CC) -dumpversion 2>/dev/null)
-endif
 
 ifeq ($(SYSTEM),Darwin)
 $(warning Support for Mac OS X is experimental.)
@@ -166,6 +166,8 @@ ifeq ($(findstring -O,$(CXXFLAGS)),)
   endif
  endif
 endif
+
+LDFLAGS = $(LDEBUGFLAGS) $(LDEXTRA)
 
 all: $(patsubst %,bin/%,$(PROGRAMS))
 
@@ -286,8 +288,16 @@ bin/%: out/%.o lib/$(call lib_expand,hessio)
 
 bin/hdata2root: root/hdata2root.cc root/toroot.cc root/toroot.hh lib/$(call lib_expand,hessio)
 	-@$(MAKE) -C root CXX="$(CXX)" CXXFLAGS="$(patsubst -I%,-I../%,$(CXXFLAGS))" \
-LIBDIR=$(LIBDIR) BINOUT=../bin ROOT_OBJ=../out
+LDEXTRA="$(LDFLAGS)" LIBDIR=$(LIBDIR) BINOUT=../bin ROOT_OBJ=../out
 
+# Alternate build through cmake: very limited configuration possibilities
+# but may (or may not) work on architectures not directly supported.
+
+.PHONY: cmake
+cmake:
+	if [ ! -d build-cmake ]; then mkdir build-cmake; fi; \
+	cd build-cmake || exit 1; \
+	../cmake-run.sh $(EXTRA_DEFINES)
 
 # Update the version whenever one of the sources changed:
 

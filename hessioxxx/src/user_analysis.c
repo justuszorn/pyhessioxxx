@@ -30,8 +30,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  @author  Konrad Bernloehr 
  *  @date    initial version: August 2006
- *  @date    @verbatim CVS $Date: 2014/05/07 13:08:25 $ @endverbatim
- *  @version @verbatim CVS $Revision: 1.69 $ @endverbatim
+ *  @date    @verbatim CVS $Date: 2015/04/30 09:47:11 $ @endverbatim
+ *  @version @verbatim CVS $Revision: 1.70 $ @endverbatim
  */
 
 #include <limits.h>
@@ -590,6 +590,80 @@ void user_set_spectrum(double di)
       up[i].d.d_sp_idx = di;
    }
    printf("Events will be weighted by E^%5.3f\n", up[0].d.d_sp_idx);
+}
+
+/**
+ *  @short Set the acceptable ranges for reconstructed impact positions.
+ */
+
+void user_set_impact_range (double *impact_range)
+{
+   /* This one cannot be telescope-type specific. */
+   int i;
+   for (i=0; i<=MAX_TEL_TYPES; i++ )
+   {
+      up[i].d.impact_range[0] = impact_range[0];
+      up[i].d.impact_range[1] = impact_range[1];
+      up[i].d.impact_range[2] = impact_range[2];
+   }
+   if ( impact_range[0] > 0. )
+      printf("Array center must be at least %4.2f m from reconstructed shower axis.\n", 
+         impact_range[0]);
+   if ( impact_range[1] > 0. )
+      printf("Reconstructed core position must have %4.2f <= x <= %4.2f\n",
+         -impact_range[1], impact_range[1]);
+   if ( impact_range[2] > 0. )
+      printf("Reconstructed core position must have %4.2f <= y <= %4.2f\n",
+         -impact_range[2], impact_range[2]);
+}
+
+/**
+ *  @short Set the acceptable ranges for true impact positions.
+ */
+
+void user_set_true_impact_range (double *true_impact_range)
+{
+   /* This one cannot be telescope-type specific. */
+   int i;
+   for (i=0; i<=MAX_TEL_TYPES; i++ )
+   {
+      up[i].d.true_impact_range[0] = true_impact_range[0];
+      up[i].d.true_impact_range[1] = true_impact_range[1];
+      up[i].d.true_impact_range[2] = true_impact_range[2];
+   }
+   if ( true_impact_range[0] > 0. )
+      printf("Array center must be at least %4.2f m from true shower axis.\n", 
+         true_impact_range[0]);
+   if ( true_impact_range[1] > 0. )
+      printf("True core position must have %4.2f <= x <= %4.2f\n",
+         -true_impact_range[1], true_impact_range[1]);
+   if ( true_impact_range[2] > 0. )
+      printf("True core position must have %4.2f <= y <= %4.2f\n",
+         -true_impact_range[2], true_impact_range[2]);
+}
+
+/**
+ *  Set the maximum core distance for telescopes if their images should
+ *  be used beyond geometrical reconstruction.
+ */
+
+void user_set_max_core_distance (double rt)
+{
+   int c = current_tel_type;
+   if ( c < 0 || c > MAX_TEL_TYPES )
+      return;
+   up[c].d.max_core_distance = rt;
+   if ( c > 0 )
+      printf("Maximum core distance for telescope type %d: %f\n", c, rt);
+   if ( c == 0 ) /* Setting unspecified type means setting all types. */
+   {
+      int i;
+      printf("Maximum core distance for all telescope types: %f\n", rt);
+      for (i=1; i<=MAX_TEL_TYPES; i++ )
+      {
+         up[i].d.max_core_distance = rt;
+      }
+   }
 }
 
 /**
@@ -1171,6 +1245,41 @@ void user_set_calib_scale (double s)
    }
 }
 
+void user_set_nb_radius (double *r)
+{
+   int ib;
+   int c = current_tel_type;
+   if ( c < 0 || c > MAX_TEL_TYPES )
+      return;
+   for ( ib=0; ib<3; ib++ )
+      up[c].d.r_nb[ib] = r[ib];
+   if ( c == 0 )
+   {
+      int i;
+      for ( i=1; i<=MAX_TEL_TYPES; i++ )
+      {
+         for ( ib=0; ib<3; ib++ )
+            up[i].d.r_nb[ib] = r[ib];
+      }
+   }
+}
+
+void user_set_nxt_radius (double r)
+{
+   int c = current_tel_type;
+   if ( c < 0 || c > MAX_TEL_TYPES )
+      return;
+   up[c].d.r_ne = r;
+   if ( c == 0 )
+   {
+      int i;
+      for ( i=1; i<=MAX_TEL_TYPES; i++ )
+      {
+         
+         up[i].d.r_ne = r;
+      }
+   }
+}
 
 /* ----------------------- expected_max_height ----------------------- */
 /**
@@ -2560,7 +2669,7 @@ static void user_event_fill (AllHessData *hsdata, int stage)
       static int have_atm_set = -1; /* For height to Xmax lookup */
       int num_trg = 0;
 
-      if ( stage != 1 )
+      if ( stage != 1 ) /* Only processing after our own shower reconstruction */
          return;
       
       if ( diffuse_mode )
@@ -2620,6 +2729,14 @@ static void user_event_fill (AllHessData *hsdata, int stage)
          Az_nom, Alt_nom, 180./M_PI, &x_nom, &y_nom); // In degrees!
       fill_histogram_by_ident(19530, x_nom, y_nom, ewt);
 
+      /* Any limits in true impact position? */
+      if ( up[0].d.true_impact_range[0] > 0. && rs > up[0].d.true_impact_range[0] )
+         return;
+      if ( up[0].d.true_impact_range[1] > 0. && fabs(xc_true) > up[0].d.true_impact_range[1] )
+         return;
+      if ( up[0].d.true_impact_range[2] > 0. && fabs(yc_true) > up[0].d.true_impact_range[2] )
+         return;
+
       if ( hsdata->event.shower.known )
       {
          if ( (hsdata->event.shower.result_bits & 0x01) == 0x01 )
@@ -2627,11 +2744,15 @@ static void user_event_fill (AllHessData *hsdata, int stage)
             Az = hsdata->event.shower.Az;
             Alt = hsdata->event.shower.Alt;
          }
+         else
+            Az = Alt = -1.;
          if ( (hsdata->event.shower.result_bits & 0x04) == 0x04 )
          {
             xc = hsdata->event.shower.xc;
             yc = hsdata->event.shower.yc;
          }
+         else
+            xc = yc = 99999.;
       }
 
       bnt.xc = xc;
@@ -2698,14 +2819,16 @@ static void user_event_fill (AllHessData *hsdata, int stage)
             if ( v_amp[itel] >= up[ttyp].d.min_amp && 
                  hsdata->event.teldata[itel].img[j_img].pixels >= up[ttyp].i.min_pix )
             {
-               n_img++;
+               n_img++; /* Images with enough pixels and big enough amplitude */
                //if ( v_rcog[itel]+v_l[itel] <= 0.85*get_camera_radius(itel,0) )
                if ( ( up[ttyp].i.user_flags==0 && 
                       v_rcog[itel]+0.35*v_l[itel] <= 0.82*get_camera_radius(itel,0) ) ||
                     ( up[ttyp].i.user_flags > 0 && /* HESS-style */
                       v_rcog[itel] <= 0.764*get_camera_radius(itel,0) ) )
                {
-                  n_img2++;
+                  if ( up[ttyp].d.max_core_distance > 0. && v_tr[itel] > up[ttyp].d.max_core_distance )
+                     continue;
+                  n_img2++; /* Images far enough from camera edge */
                   img_ok[itel]= 1;
                   if ( hsdata->event.shower.known && 
                        (hsdata->event.shower.result_bits & 0x05) == 0x05 )
@@ -2721,7 +2844,7 @@ static void user_event_fill (AllHessData *hsdata, int stage)
                      s_hmax += ww * v_tr[itel] / dimg;
                      s_hmax2+= ww * (v_tr[itel] / dimg)*(v_tr[itel] / dimg);
                      w_hmax += ww;
-                     n_img3++;
+                     n_img3++; /* Usable image in reconstructed showers */
                   }
                }
             }
@@ -2812,6 +2935,8 @@ static void user_event_fill (AllHessData *hsdata, int stage)
                if ( l <= 0.|| w < 0. || rcog+0.35*l > 0.82*get_camera_radius(itel,0) )
                   continue;
             }
+            if ( up[ttyp].d.max_core_distance > 0. && v_tr[itel] > up[ttyp].d.max_core_distance )
+               continue;
 
             /* Fill histograms for lookup table with true core distance. */
             if ( img_ok[itel] )
@@ -3153,6 +3278,14 @@ static void user_event_fill (AllHessData *hsdata, int stage)
       rr = line_point_distance(xc, yc, 0.,
               cos(Alt)*cos(Az), cos(Alt)*sin(-Az), sin(Alt),
               0., 0., 0.);
+
+      /* Any limits in reconstructed impact position? */
+      if ( up[0].d.impact_range[0] > 0. && rr > up[0].d.impact_range[0] )
+         return;
+      if ( up[0].d.impact_range[1] > 0. && fabs(xc) > up[0].d.impact_range[1] )
+         return;
+      if ( up[0].d.impact_range[2] > 0. && fabs(yc) > up[0].d.impact_range[2] )
+         return;
 
       angles_to_offset(Az, Alt,
          Az_nom, Alt_nom, 180./M_PI, &x_nom, &y_nom); // In degrees!

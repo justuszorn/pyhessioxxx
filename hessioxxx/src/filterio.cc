@@ -44,12 +44,11 @@ Options:
 using std::map;
 #include <vector>
 using std::vector;
-#include "EventIO.hh"
 #include <iostream>
 #include <string>
-#include <fileopen.h>
-#include <hconfig.h>
-#include <eventio_registry.h>
+#include "fileopen.h"
+#include "hconfig.h"
+#include "EventIO.hh"
 
 using namespace eventio;
 using std::string;
@@ -154,7 +153,11 @@ int main (int argc, char **argv)
       }
    
       // Anything else should be a file name.
+#ifdef READ_BINARY
       FILE *f = fileopen(argv[iarg],READ_BINARY);
+#else
+      FILE *f = fileopen(argv[iarg],"r");
+#endif
       if ( f == 0 )
       {
          perror(argv[iarg]);
