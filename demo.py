@@ -52,7 +52,8 @@ if __name__ == '__main__':
       # And intensity to  intensity_evts list
       intensity_evts.append(intensity)
       # Get pedestal and calibration information
-      pedestal, calibration = get_data_for_calibration(args.tel)
+      pedestal = get_pedestal(args.tel)
+      calibration = get_calibration(args.tel)
       #print(" calibration")
       
       sig = data_ch_sum[args.pix] - pedestal[channel][args.pix]
