@@ -1,6 +1,6 @@
 from setuptools import setup, Extension
 
-pyhessio_module = Extension(
+hessio_module = Extension(
     'hessio.hessioc',
     sources=['hessio/src/hessio.c'],
     include_dirs = ['hessioxxx/include',  '.'],
@@ -26,5 +26,5 @@ setup(
     author_email=AUTHOR_EMAIL,
     license=LICENSE,
     url=URL,
-    ext_modules=[pyhessio_module],
+    ext_modules=[hessio_module],
 )
