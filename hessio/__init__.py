@@ -12,7 +12,7 @@ __all__ = ['move_to_next_event','file_open','close_file',
            'get_pixel_timing_timval','get_mirror_area',
            'get_pixel_timing_num_times_types',
            'get_pixel_timing_threshold','get_pixel_timing_peak_global',
-           'get_mc_event_xcore', 'get_mc_event_ycore' ,'get_mc_shower_energy', 
+           'get_mc_event_xcore', 'get_mc_event_ycore' ,'get_mc_shower_energy',
            'get_mc_shower_azimuth' ,'get_mc_shower_altitude','get_adc_known',
            'get_ref_shape' ,'get_ref_step','get_time_slice',
            'get_ref_shapes',  'get_nrefshape' ,'get_lrefshape',
@@ -24,11 +24,12 @@ __all__ = ['move_to_next_event','file_open','close_file',
 
 
 _path = os.path.dirname(__file__)
-lib = np.ctypeslib.load_library('pyhessio', _path)
+lib = np.ctypeslib.load_library('hessioc', _path)
+print(lib)
 
 lib.close_file.restype = None
 lib.file_open.argtypes = [ctypes.c_char_p]
-lib.file_open.restype=ctypes.c_int
+lib.file_open.restype = ctypes.c_int
 lib.get_adc_sample.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_uint16, flags="C_CONTIGUOUS")]
 lib.get_adc_sample.restype = ctypes.c_int
 lib.get_adc_sum.argtypes = [ctypes.c_int,ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_int32, flags="C_CONTIGUOUS")]
@@ -70,13 +71,13 @@ lib.get_mc_event_ycore.restype = ctypes.c_double
 lib.get_mc_shower_energy.restype = ctypes.c_double
 lib.get_mc_shower_azimuth.restype = ctypes.c_double
 lib.get_mc_shower_altitude.restype = ctypes.c_double
-lib.get_adc_known.restype = ctypes.c_int  
+lib.get_adc_known.restype = ctypes.c_int
 lib.get_adc_known.argtypes = [ctypes.c_int,ctypes.c_int,ctypes.c_int]
 lib.get_ref_shape.restype = ctypes.c_double
 lib.get_ref_shape.argtypes =  [ctypes.c_int,ctypes.c_int,ctypes.c_int]
-lib.get_time_slice.restype = ctypes.c_double  
+lib.get_time_slice.restype = ctypes.c_double
 lib.get_time_slice.argtypes  =  [ctypes.c_int]
-lib.get_ref_step.restype = ctypes.c_double  
+lib.get_ref_step.restype = ctypes.c_double
 lib.get_ref_step.argtypes  =  [ctypes.c_int]
 lib.get_ref_shapes.restypes = ctypes.c_int
 lib.get_ref_shapes.argtypes =[ctypes.c_int,ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
@@ -84,11 +85,11 @@ lib.get_nrefshape.restypes = ctypes.c_int
 lib.get_nrefshape.argtypes = [ctypes.c_int]
 lib.get_lrefshape.restypes = ctypes.c_int
 lib.get_lrefshape.argtypes = [ctypes.c_int]
-lib.get_tel_event_gps_time.restype = ctypes.c_int 
+lib.get_tel_event_gps_time.restype = ctypes.c_int
 lib.get_tel_event_gps_time.argtypes = [ctypes.c_int,np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"), np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS")]
 lib.get_central_event_gps_time.restype = ctypes.c_int
 lib.get_central_event_gps_time.argtypes =  [np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"), np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS")]
-lib.get_central_event_teltrg_list.restype = ctypes.c_int 
+lib.get_central_event_teltrg_list.restype = ctypes.c_int
 lib.get_central_event_teltrg_list.argtypes = [np.ctypeslib.ndpointer(ctypes.c_int, flags="C_CONTIGUOUS")]
 
 
@@ -117,7 +118,7 @@ def move_to_next_event(limit=0):
     """
     Read data form input file
     and fill corresponding container
-    Data can be then access with 
+    Data can be then access with
     other available functions in
     this module
     By default all events are computed
@@ -127,23 +128,23 @@ def move_to_next_event(limit=0):
     limit: int,optional
         limit allows to limit the number of event generated
     """
-    result = np.zeros(1,dtype=np.int32)
+    result = np.zeros(1, dtype=np.int32)
     res = 0
     evt_num = 0
-    while  res >= 0 and ( limit == 0 or evt_num < limit): 
+    while res >= 0 and (limit == 0 or evt_num < limit):
         res = lib.move_to_next_event(result)
         if res != -1:
-            yield res,result[0]
+            yield res, result[0]
             evt_num = evt_num + 1
 
 def file_open(filename):
     """
-    Open input data file 
-    
+    Open input data file
+
     Parameters
     ----------
     filename: str
-    
+
     Returns
     --------
     0 in case of success, otherwise -1
@@ -153,7 +154,7 @@ def file_open(filename):
 
 def close_file():
     """
-    Close opened iobuf 
+    Close opened iobuf
     """
     lib.close_file()
 
@@ -161,7 +162,7 @@ def get_global_event_count():
     """
     Returns
     -------
-    counter for system trigger 
+    counter for system trigger
     """
     return lib.get_global_event_count()
 
@@ -171,7 +172,7 @@ def get_run_number():
     -------
     run number read in data file
     or -1 if not available
-    
+
     Raises
     ------
     HessioGeneralError
@@ -181,7 +182,7 @@ def get_run_number():
     if run > 0 : return run
     else:
         raise(HessioGeneralError("run number not available"))
-        
+
 
 def get_num_telescope():
     """
@@ -214,8 +215,8 @@ def get_num_tel_trig():
     if number > 0 : return number
     else:
         raise(HessioGeneralError("number of triggered telescopes in central event not available"))
-    
-    
+
+
 def get_mirror_area(telescope_id):
     """
     Returns
@@ -226,7 +227,7 @@ def get_mirror_area(telescope_id):
     Parameters
     ----------
     telescope_id: int
-    
+
     Raises
     ------
     HessioGeneralError
@@ -235,13 +236,13 @@ def get_mirror_area(telescope_id):
     HessioTelescopeIndexError
     if no telescope exist with this id
     """
-    
+
     data = np.zeros(1,dtype=np.double)
     result = lib.get_mirror_area(telescope_id,data)
     if result == 0:
         return data[0]
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     raise(HessioGeneralError("hsdata->camera_set[itel].mirror_area not available"))
 
 def get_telescope_with_data_list():
@@ -256,11 +257,11 @@ def get_telescope_with_data_list():
     if information is not available
     """
 
-    try: 
+    try:
         return get_teldata_list()
     except:
         raise(HessioGeneralError("hsdata->event.teldata_list is not available"))
-        
+
 
 def get_teldata_list():
     """
@@ -287,13 +288,13 @@ def get_num_teldata():
     Returns
     -------
     number of telescopes for which we actually have data
-    
+
     Raises
     ------
     HessioGeneralError
         If hsdata->event.num_teldata is not available
     """
-      
+
     number =  lib.get_num_teldata()
     if number > 0:
         return number
@@ -316,16 +317,16 @@ def get_num_channel(telescope_id):
     ------
     HessioGeneralError
         If hsdata->event.teldata[itel].raw
-    HessioTelescopeIndexError 
+    HessioTelescopeIndexError
         if no telescope exist with this id
     """
     result =  lib.get_num_channel(telescope_id)
     if result >= 0: return result
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError(" hsdata->event.teldata[itel].raw not available"))
-        
+
 
 def get_num_pixels(telescope_id):
     """
@@ -348,10 +349,10 @@ def get_num_pixels(telescope_id):
     result = lib.get_num_pixels(telescope_id)
     if result >= 0 : return result
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("hsdata->camera_set[itel].num_pixels not available"))
-        
+
 
 def get_pixel_timing_threshold(telescope_id):
     """
@@ -375,15 +376,15 @@ def get_pixel_timing_threshold(telescope_id):
     result = lib.get_pixel_timing_threshold(telescope_id,threshold)
     if result == 0: return threshold[0]
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("hsdata->event.teldata[itel].pixtm not available"))
-       
+
 
 def get_pixel_timing_peak_global(telescope_id):
-    
+
     """
-    Returns 
+    Returns
     -------
     PixelTiming peak_global:
      - Camera-wide (mean) peak position [time slices]
@@ -400,15 +401,15 @@ def get_pixel_timing_peak_global(telescope_id):
     HessioTelescopeIndexError
     if no telescope exist with this id
     """
-    
+
     peak = np.zeros(1,dtype=np.float32)
     result = lib.get_pixel_timing_peak_global(telescope_id,peak)
     if result == 0: return peak[0]
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("hsdata->event.teldata[itel].pixtm; not available"))
-        
+
 
 def get_pixel_timing_num_times_types(telescope_id):
     """
@@ -431,13 +432,13 @@ def get_pixel_timing_num_times_types(telescope_id):
     result = lib.get_pixel_timing_num_times_types(telescope_id)
     if result >= 0: return result
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("hsdata->event.teldata[itel].pixtm->num_types  not available"))
 
 def get_num_samples(telescope_id):
     """
-    Returns  
+    Returns
     -------
     the number of samples (time slices) recorded
 
@@ -456,19 +457,19 @@ def get_num_samples(telescope_id):
     result = lib.get_num_samples(telescope_id)
     if result >= 0: return result
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("ata->event.teldata[itel].raw->num->samples not available"))
-        
-        
+
+
 
 
 def get_adc_sample(telescope_id,channel):
     """
     Returns
-    ------- 
+    -------
     pulses sampled
-   
+
     Parameters
     ----------
     telescope_id: int
@@ -481,7 +482,7 @@ def get_adc_sample(telescope_id,channel):
 
     HessioTelescopeIndexError
     if no telescope exist with this id
-    
+
     HessioChannelIndexError
     If channel does not exist for this telescope
     """
@@ -491,7 +492,7 @@ def get_adc_sample(telescope_id,channel):
     try:
         npix = get_num_pixels(telescope_id)
         ntimeslices = get_num_samples(telescope_id)
-        
+
 
         if ( ntimeslices > 0):
             data = np.zeros(npix*ntimeslices,dtype=np.uint16)
@@ -500,7 +501,7 @@ def get_adc_sample(telescope_id,channel):
                 d_data = data.reshape(npix,ntimeslices)
                 return d_data
             elif result == TEL_INDEX_NOT_VALID:
-                raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+                raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
             else:
                 raise(HessioGeneralError("adc sample not available for telescope "+
                                        str(telescope_id) +
@@ -509,18 +510,18 @@ def get_adc_sample(telescope_id,channel):
             return np.zeros(0)
 
 
-    except HessioTelescopeIndexError: raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+    except HessioTelescopeIndexError: raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     except HessioGeneralError: raise (HessioGeneralError("adc sample not available for telescope "+
                                    str(telescope_id) +
                                    " and channel " + str(channel)))
-    
+
 
 def get_adc_sum(telescope_id,channel):
     """
-    Returns 
+    Returns
     -------
-    the sum of ADC values. 
-    
+    the sum of ADC values.
+
     Parameters
     ----------
     telescope_id: int
@@ -529,36 +530,36 @@ def get_adc_sum(telescope_id,channel):
     Raises
     ------
     HessioGeneralError
-    If No adc_sum for telescope 
+    If No adc_sum for telescope
 
     HessioTelescopeIndexError
     if no telescope exist with this id
-    
+
     HessioChannelIndexError
     If channel does not exist for this telescope
-    
+
     """
-    
+
     if channel > get_num_channel(telescope_id)-1:
         raise(HessioChannelIndexError("telescope " + str(telescope_id) + " has not got channel " + str(channel)))
-    
+
     npix = get_num_pixels(telescope_id)
     data = np.zeros(npix,dtype=np.int32)
-    result = lib.get_adc_sum(telescope_id,channel ,data) 
+    result = lib.get_adc_sum(telescope_id,channel ,data)
     if result == 0:
         return data
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("No adc_sum for telescope "+ str(telescope_id)))
-        
+
 
 def get_pixel_timing_timval(telescope_id):
     """
-    Returns 
+    Returns
     -------
     PixelTiming.timval
-    
+
     Parameters
     ----------
     telescope_id: int
@@ -570,7 +571,7 @@ def get_pixel_timing_timval(telescope_id):
 
     HessioTelescopeIndexError
     if no telescope exist with this id
-            
+
     """
     npix = get_num_pixels(telescope_id)
     ntimes = get_pixel_timing_num_times_types(telescope_id)
@@ -580,18 +581,18 @@ def get_pixel_timing_timval(telescope_id):
         d_data = data.reshape(npix,ntimes)
         return d_data
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("no pixel timing timval for telescope "
                               + str(telescope_id)))
-        
-  
+
+
 def get_calibration(telescope_id):
     """
     Returns
-    ------- 
+    -------
     calibration numpy array (num_gain dimention)
-    
+
     Parameters
     ----------
     telescope_id: int
@@ -608,13 +609,13 @@ def get_calibration(telescope_id):
 
     ngain =  get_num_channel(telescope_id)
     calibration = np.zeros(ngain*npix,dtype=np.double)
-    
+
     result = lib.get_calibration(telescope_id,calibration)
     if result == 0:
         d_cal = calibration.reshape(ngain,npix)
         return d_cal
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("no calibration data for telescope "
                               + str(telescope_id)))
@@ -622,9 +623,9 @@ def get_calibration(telescope_id):
 def get_pedestal(telescope_id):
     """
     Returns
-    ------- 
+    -------
     pedestal numpy array (num_gain dimention)
-    
+
     Parameters
     ----------
     telescope_id: int
@@ -647,15 +648,15 @@ def get_pedestal(telescope_id):
         d_ped = pedestal.reshape(ngain,npix)
         return d_ped
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("no pedestal data for telescope "
                               + str(telescope_id)))
-  
+
 def get_pixel_position(telescope_id):
     """
     Returns
-    ------- 
+    -------
     pixels position for a telecsope id
 
     Parameters
@@ -679,7 +680,7 @@ def get_pixel_position(telescope_id):
     if result == 0:
         return pos_x, pos_y
     elif result == TEL_INDEX_NOT_VALID:
-        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id))) 
+        raise(HessioTelescopeIndexError("no telescope wth id " + str(telescope_id)))
     else:
         raise(HessioGeneralError("no pixel position for telescope "
                               + str(telescope_id)))
@@ -689,7 +690,7 @@ def get_pixel_position(telescope_id):
 def get_mc_event_xcore():
     """
     Returns
-    ------- 
+    -------
     x core position w.r.t. array reference point [m],
     x -> N
     """
@@ -699,7 +700,7 @@ def get_mc_event_xcore():
 def get_mc_event_ycore():
     """
     Returns
-    ------- 
+    -------
     y core position w.r.t. array reference point [m],
     y -> W
     """
@@ -708,7 +709,7 @@ def get_mc_event_ycore():
 def get_mc_shower_energy():
     """
     Returns
-    ------- 
+    -------
     shower primary energy [TeV]
     """
     return  lib.get_mc_shower_energy()
@@ -716,7 +717,7 @@ def get_mc_shower_energy():
 def get_mc_shower_azimuth():
     """
     Returns
-    ------- 
+    -------
     shower azimuth (N->E) [rad]
     """
     return  lib.get_mc_shower_azimuth()
@@ -724,7 +725,7 @@ def get_mc_shower_azimuth():
 def get_mc_shower_altitude():
     """
     Returns
-    ------- 
+    -------
     shower altitude [rad]
     """
     return  lib.get_mc_shower_altitude()
@@ -733,7 +734,7 @@ def get_adc_known(telescope_id, channel, pixel_id):
     """
     Returns:
     --------
-    individual channel recorded information ? 
+    individual channel recorded information ?
     Bit 0: sum, 1: samples, 2: ADC was in saturation.
     Parameters
     ----------
@@ -812,7 +813,7 @@ def get_ref_step(telescope_id):
     telescope_id: int
     """
     return lib.get_ref_step(telescope_id)
-    
+
 def get_time_slice(telescope_id):
     """
     Returns:
@@ -833,7 +834,7 @@ def  get_tel_event_gps_time(telescope_id):
     --------
     telescope event gps tine in a 2D array:
         -seconds
-        -nonosecond 
+        -nonosecond
     Parameters
     ----------
     telescope_id: int
@@ -846,7 +847,7 @@ def  get_tel_event_gps_time(telescope_id):
         return seconds[0], nanoseconds[0]
     else:
         raise(HessioGeneralError("no event gps time for telescope "))
-    
+
 
 def  get_central_event_gps_time():
     """
@@ -854,7 +855,7 @@ def  get_central_event_gps_time():
     --------
     telescope central envent gps tine in a 2D array:
         -seconds
-        -nonosecond 
+        -nonosecond
     """
     seconds = np.zeros(1,dtype=np.long)
     nanoseconds = np.zeros(1,dtype=np.long)
@@ -864,8 +865,8 @@ def  get_central_event_gps_time():
         return seconds[0], nanoseconds[0]
     else:
         raise(HessioGeneralError("no central event  gps time"))
-    
-    
+
+
 def get_central_event_teltrg_list():
     """
     Returns
@@ -882,5 +883,5 @@ def get_central_event_teltrg_list():
         return array
     else:
         raise(HessioGeneralError("hsdata is not available"))
-  
+
 

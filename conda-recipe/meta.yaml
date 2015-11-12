@@ -1,0 +1,12 @@
+package:
+  name: hessioxxx
+  version: 0.1
+
+source:
+  git_url: https://github.com/maxnoe/hessioxxx
+  git_branch: pymodule
+
+build:
+  number: 1
+  binary_relocation: True
+  detect_binary_files_with_prefix: True
