@@ -1,9 +1,9 @@
 package:
-  name: hessioxxx
+  name: pyhessioxxx
   version: 0.1
 
 source:
-  git_url: https://github.com/maxnoe/hessioxxx
+  git_url: https://github.com/jacquemier/pyhessioxxx
   git_branch: pymodule
 
 build:

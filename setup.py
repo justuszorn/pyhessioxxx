@@ -3,7 +3,7 @@ from setuptools import setup, Extension
 pyhessio_module = Extension(
     'hessio.hessioc',
     sources=['hessio/src/hessio.c'],
-    include_dirs = ['include',  '.'],
+    include_dirs = ['hessioxxx/include',  '.'],
     libraries=['hessio'],
     define_macros=[('CTA', None), ('CTA_MAX_SC', None)]
 )
