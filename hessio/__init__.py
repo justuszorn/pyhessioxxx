@@ -25,7 +25,6 @@ __all__ = ['move_to_next_event','file_open','close_file',
 
 _path = os.path.dirname(__file__)
 lib = np.ctypeslib.load_library('hessioc', _path)
-print(lib)
 
 lib.close_file.restype = None
 lib.file_open.argtypes = [ctypes.c_char_p]
