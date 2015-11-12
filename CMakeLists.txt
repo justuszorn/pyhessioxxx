@@ -39,4 +39,4 @@ add_definitions(-D${BuildConfig})
 
 # build the libraries and executables
 add_subdirectory("hessioxxx/src")
-install(DIRECTORY include/ DESTINATION include/hessio)
+install(DIRECTORY hessioxxx/include/ DESTINATION include/hessio)
