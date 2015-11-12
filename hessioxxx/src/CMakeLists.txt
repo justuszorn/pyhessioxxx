@@ -20,19 +20,19 @@ set( HESSIO_SOURCES
                     straux.c 
                     warning.c 
                     io_hess.c)
-include_directories( ${PROJECT_SOURCE_DIR}/../include )
+include_directories( ${PROJECT_SOURCE_DIR}/hessioxxx/include )
 
 set( HESSIO_HEADERS
-       ${PROJECT_SOURCE_DIR}/../include/history.h
-       ${PROJECT_SOURCE_DIR}/../include/initial.h
-       ${PROJECT_SOURCE_DIR}/../include/io_basic.h 
-       ${PROJECT_SOURCE_DIR}/../include/io_histogram.h 
-       ${PROJECT_SOURCE_DIR}/../include/io_history.h
-       ${PROJECT_SOURCE_DIR}/../include/mc_tel.h
-       ${PROJECT_SOURCE_DIR}/../include/straux.h
-       ${PROJECT_SOURCE_DIR}/../include/warning.h 
-       ${PROJECT_SOURCE_DIR}/../include/io_hess.h
-       ${PROJECT_SOURCE_DIR}/../include/io_trgmask.h
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/history.h
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/initial.h
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/io_basic.h 
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/io_histogram.h 
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/io_history.h
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/mc_tel.h
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/straux.h
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/warning.h 
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/io_hess.h
+       ${PROJECT_SOURCE_DIR}/hessioxxx/include/io_trgmask.h
        )
 
 # Libraries
