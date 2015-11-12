@@ -38,5 +38,5 @@ add_definitions(-D${BuildConfig})
 # add_definitions(-DHAVE_STD_VECTOR -DHAVE_STD_VALARRAY -DHAVE_STD_STRING -DHAVE_64BIT_INT -DSIXTY_FOUR_BITS)
 
 # build the libraries and executables
-add_subdirectory("src")
+add_subdirectory("hessioxxx/src")
 install(DIRECTORY include/ DESTINATION include/hessio)
