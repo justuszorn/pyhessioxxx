@@ -16,8 +16,7 @@ int file_open(const char* filename);
 int fill_hsdata(int* event_id);
 int get_adc_sample(int telescope_id, int channel, uint16_t *data );
 int get_adc_sum(int telescope_id, int channel, uint32_t *data );
-int get_pedestal(int telescope_id, double* pedestal );
-int get_calibration(int telescope_id, double* calib );
+int get_data_for_calibration(int telescope_id,double* pedestal,double* calib);
 int get_global_event_count(void);
 int get_mirror_area(int telescope_id,double* mirror_area);
 int get_num_channel(int telescope_id);
@@ -50,6 +49,10 @@ int get_num_tel_trig();
 int get_ref_shapes(int telescope_id,int channel, double* ref_shapes );
 int get_nrefshape(int telescope_id);
 int get_lrefshape(int telescope_id);
+int get_mirror_number(int telescope_id);
+double get_optical_foclen(int telescope_id);
+int get_telescope_ids(int* list);
+
 
 static AllHessData *hsdata = NULL;
 static IO_ITEM_HEADER item_header;
@@ -81,6 +84,8 @@ int file_open(const char* filename)
   if (filename)
   {
     if (file_is_opened) { close_file(); }
+
+    show_hessio_max();
 
     /* Check assumed limits with the ones compiled into the library. */
     H_CHECK_MAX();
@@ -546,56 +551,30 @@ int get_adc_sum(int telescope_id, int channel, uint32_t *data )
   return -1;
 }
 //----------------------------------------------------------------
-// Fill calibration data
-//  double calib[H_MAX_GAINS][H_MAX_PIX]; /**< ADC to laser/LED p.e. conversion,
-// Returns  0 for success,  TEL_INDEX_NOT_VALID if telescope index is not valid
-//
-int get_calibration(int telescope_id, double* calib )
-//----------------------------------------------------------------
-{
-  if ( hsdata != NULL)
-  {
-    unsigned int itel = get_telescope_index(telescope_id);
-    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
-     LasCalData  calibration = hsdata->tel_lascal[itel];
-     unsigned int num_gain = calibration.num_gains; 
-     unsigned int num_pixels = hsdata->camera_set[itel].num_pixels;
-     unsigned int ipix =0.;
-     for(ipix=0.;ipix<num_pixels;ipix++) // loop over pixels
-     {
-       int igain=0;
-       for(igain=0;igain<num_gain;igain++)
-       {
-         *calib++=calibration.calib[igain][ipix];
-       } // end loop gain
-     }  // end of   loop over pixels
-     return 0;
-  }
-  return -1;
-}
-//----------------------------------------------------------------
-// Fill pedestal data
+// Returns needed informations for calibration process
 //  double pedestal[H_MAX_GAINS][H_MAX_PIX];  ///< Average pedestal on ADC sums
-// Returns 0 for success TEL_INDEX_NOT_VALID if telescope index is not valid
+//  double calib[H_MAX_GAINS][H_MAX_PIX]; /**< ADC to laser/LED p.e. conversion,
+// Returns TEL_INDEX_NOT_VALID if telescope index is not valid
 //
-int get_pedestal(int telescope_id, double* pedestal )
+int get_data_for_calibration(int telescope_id, double* pedestal, double* calib )
 //----------------------------------------------------------------
 {
   if ( hsdata != NULL)
   {
-    unsigned int itel = get_telescope_index(telescope_id);
+    int itel = get_telescope_index(telescope_id);
     if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
      TelMoniData monitor= hsdata->tel_moni[itel];
-     unsigned int num_gain = monitor.num_gains; 
-     unsigned int num_pixels = hsdata->camera_set[itel].num_pixels;
-     unsigned int ipix =0.;
+     LasCalData  calibration = hsdata->tel_lascal[itel];
+     int ipix =0.;
+     int num_pixels = hsdata->camera_set[itel].num_pixels;
      for(ipix=0.;ipix<num_pixels;ipix++) // loop over pixels
      {
-       unsigned int igain=0;
-       for(igain=0;igain<num_gain;igain++)
-       {
-         *pedestal++=monitor.pedestal[igain][ipix];
-       } // end loop gain
+     int igain=0, num_gain=2; // LOW and HI Gain
+     for(igain=0;igain<num_gain;igain++)
+     {
+       *pedestal++=monitor.pedestal[igain][ipix];
+       *calib++=calibration.calib[igain][ipix];
+     } // end loop gain
      }  // end of   loop over pixels
      return 0;
   }
@@ -708,6 +687,7 @@ int get_tel_event_gps_time(int telescope_id, long* seconds, long* nanoseconds)
   }
   return -1;
 }
+
 //---------------------------------------------
 // Returns PixelTiming threshold:
 //  - Minimum base-to-peak raw amplitude difference applied in pixel selection
@@ -729,7 +709,7 @@ int get_pixel_timing_threshold(int telescope_id,int *result)
 // Returns PixelTiming peak_global:
 //  Camera-wide (mean) peak position [time slices]
 // Returns TEL_INDEX_NOT_VALID if telescope index is not valid
-//-----------------------------------------------------
+//----------------------------------------------------
 int get_pixel_timing_peak_global(int telescope_id,float *result)
 {
   if ( hsdata != NULL && result != NULL)
@@ -1073,3 +1053,52 @@ int get_pixel_timing_peak_global(int telescope_id,float *result)
   return (int) item_header.type;
 }
 
+//----------------------------------------------------------------
+// Returns total number of mirror tiles.
+// Returns TEL_INDEX_NOT_VALID if telescope index is not valid
+//----------------------------------------------------------------
+int get_mirror_number(int telescope_id)
+{
+  if ( hsdata != NULL )
+  {
+  int itel = get_telescope_index(telescope_id);
+    if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+   return hsdata->camera_set[itel].num_mirrors;
+  }
+  return -1.;
+}
+
+//----------------------------------------------------------------
+// Returns focal length of optics [m].
+// Returns TEL_INDEX_NOT_VALID if telescope index is not valid
+//----------------------------------------------------------------
+
+double get_optical_foclen(int telescope_id)
+{
+  if ( hsdata != NULL )
+    {
+      int itel = get_telescope_index(telescope_id);
+      if (itel == TEL_INDEX_NOT_VALID) return TEL_INDEX_NOT_VALID;
+      return hsdata->camera_set[itel].flen;
+    }
+  return -1.;
+}
+
+//-----------------------------------
+// Returns IDs of used telescope in the run
+//-----------------------------------
+
+int get_telescope_ids(int* list)
+{
+  if ( hsdata != NULL)
+    {
+      int num_tel = get_num_telescope();
+      int loop=0;
+      for (loop=0; loop < num_tel; loop++)
+	{
+	  *list++ =hsdata->run_header.tel_id[loop];
+    }
+      return 0;
+    }
+  return -1;
+}
